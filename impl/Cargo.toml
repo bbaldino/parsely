@@ -1,0 +1,16 @@
+[package]
+name = "parsely-impl"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Macro-based struct serialization/deserialization"
+
+[dependencies]
+anyhow = "1"
+bit-cursor = "0.1.2"
+darling = "0.20.10"
+paste = "1"
+proc-macro2 = "1"
+proc-macro-crate = "3"
+quote = "1"
+syn = { version = "2", features = ["full", "extra-traits"] }

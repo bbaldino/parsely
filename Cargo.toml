@@ -1,0 +1,24 @@
+[package]
+name = "parsely"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Macro-based struct serialization/deserialization"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+parsely-macro = { version = "=0.1.0", path = "macro" }
+parsely-impl = { version = "=0.1.0", path = "impl" }
+
+[dev-dependencies]
+trybuild = "1"
+macrotest = "1"
+
+[[test]]
+name = "trybuild"
+path = "tests/ui.rs"
+
+[workspace]
+members = [".", "impl", "macro"]
+default-members = [".", "impl"]
