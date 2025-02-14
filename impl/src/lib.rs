@@ -30,24 +30,6 @@ pub fn derive_parsely_read(item: TokenStream) -> std::result::Result<TokenStream
     Ok(generate_parsely_read_impl(data))
 }
 
-#[derive(Debug, FromMeta)]
-enum ParselyByteOrder {
-    NetworkOrder,
-    BigEndian,
-    LittleEndian,
-}
-
-impl ToTokens for ParselyByteOrder {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let token = match self {
-            ParselyByteOrder::NetworkOrder => quote! { NetworkOrder },
-            ParselyByteOrder::BigEndian => quote! { BigEndian },
-            ParselyByteOrder::LittleEndian => quote! { LittleEndian },
-        };
-        tokens.extend(token)
-    }
-}
-
 #[derive(Debug, FromField)]
 #[darling(attributes(parsely))]
 pub struct ParselyFieldData {
@@ -65,6 +47,5 @@ pub struct ParselyFieldData {
 #[darling(attributes(parsely), supports(struct_any, enum_any))]
 pub struct ParselyData {
     ident: syn::Ident,
-    byte_order: Option<ParselyByteOrder>,
     data: ast::Data<(), ParselyFieldData>,
 }
