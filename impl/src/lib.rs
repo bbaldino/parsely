@@ -58,7 +58,7 @@ pub struct ParselyFieldData {
     /// This magic field name pulls the type from the input.
     ty: syn::Type,
 
-    fixed: Option<String>,
+    fixed: Option<syn::Expr>,
 }
 
 #[derive(Debug, FromDeriveInput)]
