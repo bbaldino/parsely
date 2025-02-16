@@ -46,7 +46,7 @@ pub fn generate_parsely_read_impl(data: ParselyData) -> TokenStream {
                     })
                 })
             }
-            output.extend(quote! { .context(#error_context)?;});
+            output.extend(quote! { .with_context(|| #error_context)?;});
             output
         })
         .collect::<Vec<TokenStream>>();
