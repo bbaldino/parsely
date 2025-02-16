@@ -1,12 +1,34 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::ParselyData;
+use crate::{model_types::Local, ParselyData};
 
 pub fn generate_parsely_read_impl(data: ParselyData) -> TokenStream {
     let struct_name = data.ident;
     let data_struct = data.data.take_struct().unwrap();
     eprintln!("Fields type: {:?}", data_struct.style);
+
+    let (context_assignments, context_types) =
+        if let Some(ref required_context) = data.required_context {
+            required_context
+                .0
+                .iter()
+                .enumerate()
+                .map(|(idx, fn_arg)| {
+                    let idx: syn::Index = idx.into();
+                    let assignment: Local = syn::parse2(quote! {
+                        let #fn_arg = ctx.#idx;
+                    })
+                    .unwrap();
+                    (assignment, fn_arg.ty())
+                })
+                .collect::<Vec<(_, _)>>()
+                .into_iter()
+                .unzip()
+        } else {
+            (Vec::new(), Vec::new())
+        };
+
     let field_reads = data_struct
         .fields
         .iter()
@@ -42,8 +64,10 @@ pub fn generate_parsely_read_impl(data: ParselyData) -> TokenStream {
         .map(|f| f.ident.as_ref().unwrap())
         .collect::<Vec<&syn::Ident>>();
     quote! {
-        impl parsely::ParselyRead<()> for #struct_name {
-            fn read<T: parsely::ByteOrder, B: parsely::BitRead>(buf: &mut B, _ctx: ()) -> parsely::ParselyResult<Self> {
+        impl parsely::ParselyRead<(#(#context_types,)*)> for #struct_name {
+            fn read<T: parsely::ByteOrder, B: parsely::BitRead>(buf: &mut B, ctx: (#(#context_types,)*)) -> parsely::ParselyResult<Self> {
+                #(#context_assignments)*
+
                 #(#field_reads)*
 
                 Ok(Self { #(#field_names,)* })
