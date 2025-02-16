@@ -1,6 +1,56 @@
+use darling::{ast, FromMeta};
 use proc_macro2::TokenStream;
-use quote::ToTokens;
+use quote::{quote, ToTokens};
 use syn::parse::Parse;
+
+#[derive(Debug)]
+pub(crate) struct RequiredContext(pub(crate) Vec<TypedFnArg>);
+
+impl RequiredContext {
+    pub(crate) fn types(&self) -> Vec<&syn::Type> {
+        self.0.iter().map(|t| t.ty()).collect()
+    }
+
+    pub(crate) fn assignments(&self) -> Vec<Local> {
+        self.0
+            .iter()
+            .enumerate()
+            .map(|(idx, fn_arg)| {
+                let idx: syn::Index = idx.into();
+                syn::parse2::<Local>(quote! {
+                    let #fn_arg = ctx.#idx;
+                })
+                .unwrap()
+            })
+            .collect::<Vec<_>>()
+    }
+}
+
+impl FromMeta for RequiredContext {
+    fn from_none() -> Option<Self> {
+        None
+    }
+
+    fn from_list(items: &[ast::NestedMeta]) -> darling::Result<Self> {
+        let required_context: Vec<TypedFnArg> = items
+            .iter()
+            .map(|item| {
+                match item {
+                    // TODO: better error message here
+                    ast::NestedMeta::Meta(_) => Err(darling::Error::unsupported_format(
+                        "FnArg literals required",
+                    )),
+                    ast::NestedMeta::Lit(lit) => match lit {
+                        syn::Lit::Str(s) => s.parse().map_err(|e| e.into()),
+                        l => Err(darling::Error::unexpected_lit_type(l)),
+                    },
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(Self(required_context))
+    }
+}
 
 /// Same as [`syn::FnArg`] but only allows the [`syn::FnArg::Typed`] variant.
 #[derive(Debug)]

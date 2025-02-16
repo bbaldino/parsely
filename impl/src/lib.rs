@@ -16,8 +16,8 @@ pub mod anyhow {
 }
 
 use code_gen::generate_parsely_read_impl;
-use darling::{ast, FromDeriveInput, FromField, FromMeta};
-use model_types::TypedFnArg;
+use darling::{ast, FromDeriveInput, FromField};
+use model_types::RequiredContext;
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
 
@@ -42,41 +42,6 @@ pub struct ParselyFieldData {
     ty: syn::Type,
 
     fixed: Option<syn::Expr>,
-}
-
-#[derive(Debug)]
-struct RequiredContext(pub(crate) Vec<TypedFnArg>);
-
-impl RequiredContext {
-    pub(crate) fn types(&self) -> Vec<&syn::Type> {
-        self.0.iter().map(|t| t.ty()).collect()
-    }
-}
-
-impl FromMeta for RequiredContext {
-    fn from_none() -> Option<Self> {
-        None
-    }
-
-    fn from_list(items: &[ast::NestedMeta]) -> darling::Result<Self> {
-        let required_context: Vec<TypedFnArg> = items
-            .iter()
-            .map(|item| {
-                match item {
-                    // TODO: better error message here
-                    ast::NestedMeta::Meta(_) => Err(darling::Error::unsupported_format(
-                        "FnArg literals required",
-                    )),
-                    ast::NestedMeta::Lit(lit) => match lit {
-                        syn::Lit::Str(s) => s.parse().map_err(|e| e.into()),
-                        l => Err(darling::Error::unexpected_lit_type(l)),
-                    },
-                }
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        Ok(Self(required_context))
-    }
 }
 
 #[derive(Debug, FromDeriveInput)]

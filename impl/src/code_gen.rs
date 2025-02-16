@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::{model_types::Local, ParselyData};
+use crate::ParselyData;
 
 pub fn generate_parsely_read_impl(data: ParselyData) -> TokenStream {
     let struct_name = data.ident;
@@ -10,21 +10,7 @@ pub fn generate_parsely_read_impl(data: ParselyData) -> TokenStream {
 
     let (context_assignments, context_types) =
         if let Some(ref required_context) = data.required_context {
-            required_context
-                .0
-                .iter()
-                .enumerate()
-                .map(|(idx, fn_arg)| {
-                    let idx: syn::Index = idx.into();
-                    let assignment: Local = syn::parse2(quote! {
-                        let #fn_arg = ctx.#idx;
-                    })
-                    .unwrap();
-                    (assignment, fn_arg.ty())
-                })
-                .collect::<Vec<(_, _)>>()
-                .into_iter()
-                .unzip()
+            (required_context.assignments(), required_context.types())
         } else {
             (Vec::new(), Vec::new())
         };
