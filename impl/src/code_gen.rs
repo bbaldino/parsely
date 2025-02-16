@@ -23,8 +23,14 @@ pub fn generate_parsely_read_impl(data: ParselyData) -> TokenStream {
             let ty = &f.ty;
             let error_context = format!("Reading field '{field_name}'");
 
+            let context = if let Some(ref field_context) = f.context {
+                field_context.expressions()
+            } else {
+                Vec::new()
+            };
+
             let mut output = quote! {
-                let #field_name = #ty::read::<T, B>(buf, ())
+                let #field_name = #ty::read::<T, B>(buf, (#(#context,)*))
             };
             if let Some(ref fixed_value) = f.fixed {
                 // Note: evaluate '#fixed_value' since it's an expression and we don't want to

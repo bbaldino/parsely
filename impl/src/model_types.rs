@@ -52,6 +52,40 @@ impl FromMeta for RequiredContext {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct Context(Vec<syn::Expr>);
+
+impl Context {
+    pub(crate) fn expressions(&self) -> Vec<syn::Expr> {
+        self.0.clone()
+    }
+}
+
+impl FromMeta for Context {
+    fn from_none() -> Option<Self> {
+        None
+    }
+    fn from_list(items: &[ast::NestedMeta]) -> darling::Result<Self> {
+        let expressions: Vec<syn::Expr> = items
+            .iter()
+            .map(|item| {
+                match item {
+                    // TODO: better error message here
+                    ast::NestedMeta::Meta(_) => Err(darling::Error::unsupported_format(
+                        "FnArg literals required",
+                    )),
+                    ast::NestedMeta::Lit(lit) => match lit {
+                        syn::Lit::Str(s) => s.parse().map_err(|e| e.into()),
+                        l => Err(darling::Error::unexpected_lit_type(l)),
+                    },
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(Self(expressions))
+    }
+}
+
 /// Same as [`syn::FnArg`] but only allows the [`syn::FnArg::Typed`] variant.
 #[derive(Debug)]
 pub(crate) struct TypedFnArg(syn::FnArg);

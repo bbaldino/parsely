@@ -4,8 +4,8 @@ mod model_types;
 pub mod parsely_read;
 
 pub use bit_cursor::{
-    bit_read::BitRead, byte_order::BigEndian, byte_order::ByteOrder, byte_order::LittleEndian,
-    byte_order::NetworkOrder,
+    bit_cursor::BitCursor, bit_read::BitRead, byte_order::BigEndian, byte_order::ByteOrder,
+    byte_order::LittleEndian, byte_order::NetworkOrder,
 };
 pub mod nsw_types {
     pub use bit_cursor::nsw_types::*;
@@ -17,7 +17,7 @@ pub mod anyhow {
 
 use code_gen::generate_parsely_read_impl;
 use darling::{ast, FromDeriveInput, FromField};
-use model_types::RequiredContext;
+use model_types::{Context, RequiredContext};
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
 
@@ -25,7 +25,7 @@ use syn::DeriveInput;
 pub fn derive_parsely_read(item: TokenStream) -> std::result::Result<TokenStream, syn::Error> {
     let ast: DeriveInput = syn::parse2(item)?;
     let data = ParselyData::from_derive_input(&ast)?;
-    eprintln!("HELLO, WORLD, data = {data:#?}");
+    // eprintln!("HELLO, WORLD, data = {data:#?}");
     // eprintln!("HELLO, WORLD, item = {ast:#?}");
 
     Ok(generate_parsely_read_impl(data))
@@ -42,6 +42,7 @@ pub struct ParselyFieldData {
     ty: syn::Type,
 
     fixed: Option<syn::Expr>,
+    context: Option<Context>,
 }
 
 #[derive(Debug, FromDeriveInput)]
