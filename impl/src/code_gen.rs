@@ -36,12 +36,12 @@ pub fn generate_parsely_read_impl(data: ParselyData) -> TokenStream {
                 // Note: evaluate '#fixed_value' since it's an expression and we don't want to
                 // evaluate it twice (one for the check and again in the error case)
                 output.extend(quote! {
-                    .and_then(|v| {
+                    .and_then(|actual_value| {
                         let expected_value = #fixed_value;
-                        if v != expected_value {
-                            bail!("Required to have fixed value '{}', but instead had '{}'", v, expected_value)
+                        if actual_value != expected_value {
+                            bail!("Required to have fixed value '{}', but instead had '{}'",  expected_value, actual_value)
                         } else {
-                            Ok(v)
+                            Ok(actual_value)
                         }
                     })
                 })
