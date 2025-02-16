@@ -2,6 +2,7 @@ mod code_gen;
 pub mod error;
 mod model_types;
 pub mod parsely_read;
+mod syn_helpers;
 
 pub use bit_cursor::{
     bit_cursor::BitCursor, bit_read::BitRead, byte_order::BigEndian, byte_order::ByteOrder,
@@ -41,8 +42,12 @@ pub struct ParselyFieldData {
     /// This magic field name pulls the type from the input.
     ty: syn::Type,
 
+    // generics: Option<syn::Ident>,
     fixed: Option<syn::Expr>,
     context: Option<Context>,
+
+    /// 'when' is required when there's an optional field
+    when: Option<syn::Expr>,
 }
 
 #[derive(Debug, FromDeriveInput)]
