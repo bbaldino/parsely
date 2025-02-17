@@ -19,9 +19,9 @@ pub fn generate_parsely_read_impl(data: ParselyData) -> TokenStream {
         .fields
         .iter()
         .map(|f| {
-            let field_name = f.ident.as_ref().unwrap();
-            let read_type = if f.ty.is_option() {
-                f.ty.option_inner_type().unwrap()
+            let field_name = f.ident.as_ref().expect("Field has a name");
+            let read_type = if f.ty.is_option() || f.ty.is_collection() {
+                f.ty.inner_type().expect("Option or collection has an inner type")
             } else {
                 &f.ty
             };
@@ -35,7 +35,18 @@ pub fn generate_parsely_read_impl(data: ParselyData) -> TokenStream {
 
             let read_assignment = {
                 let mut read_assignment_output = TokenStream::new();
-                read_assignment_output.extend(quote!{#read_type::read::<T, B>(buf, (#(#context_values,)*))});
+                if f.ty.is_collection() {
+                    let count_expr = f.count.as_ref().expect("Collection field '{field_name}' must have a 'count' attribute"); 
+                    read_assignment_output.extend(quote! {
+                        (0..(#count_expr)).map(|idx| {
+                            #read_type::read::<T, B>(buf, (#(#context_values,)*)).with_context(|| format!("Index {idx}")) 
+                        }).collect::<ParselyResult<Vec<_>>>()
+                    });
+                } else {
+                    read_assignment_output.extend(quote! {
+                        #read_type::read::<T, B>(buf, (#(#context_values,)*))
+                    });
+                }
                 if let Some(ref fixed_value) = f.fixed {
                     // Note: evaluate '#fixed_value' since it's an expression and we don't want to
                     // evaluate it twice (one for the check and again in the error case)
@@ -56,9 +67,9 @@ pub fn generate_parsely_read_impl(data: ParselyData) -> TokenStream {
             };
 
             let read_assignment = if f.ty.is_option() {
-                let when_clause = f.when.as_ref().expect("Optional field '{field_name}' must have a 'when' attribute");
-                quote!{
-                    if #when_clause {
+                let when_expr = f.when.as_ref().expect("Optional field '{field_name}' must have a 'when' attribute");
+                quote! {
+                    if #when_expr {
                         Some(#read_assignment)
                     } else {
                         None

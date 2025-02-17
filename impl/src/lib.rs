@@ -48,6 +48,9 @@ pub struct ParselyFieldData {
 
     /// 'when' is required when there's an optional field
     when: Option<syn::Expr>,
+
+    /// 'count' is required when the field is a collection
+    count: Option<syn::Expr>,
 }
 
 #[derive(Debug, FromDeriveInput)]
