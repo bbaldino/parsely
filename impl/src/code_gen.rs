@@ -20,6 +20,7 @@ pub fn generate_parsely_read_impl(data: ParselyData) -> TokenStream {
         .iter()
         .map(|f| {
             let field_name = f.ident.as_ref().expect("Field has a name");
+            let field_name_str = field_name.to_string();
             let read_type = if f.ty.is_option() || f.ty.is_collection() {
                 f.ty.inner_type().expect("Option or collection has an inner type")
             } else {
@@ -47,17 +48,17 @@ pub fn generate_parsely_read_impl(data: ParselyData) -> TokenStream {
                         #read_type::read::<T, B>(buf, (#(#context_values,)*))
                     });
                 }
-                if let Some(ref fixed_value) = f.fixed {
-                    // Note: evaluate '#fixed_value' since it's an expression and we don't want to
-                    // evaluate it twice (one for the check and again in the error case)
+                if let Some(ref assertion) = f.assertion {
+                    let assertion_string = quote! { #assertion }.to_string();
+                    // Note: assign the value of the assertion expression to a variable to make it
+                    // calleable.
                     read_assignment_output.extend(quote! {
                         .and_then(|actual_value| {
-                            let expected_value = #fixed_value;
-                            if actual_value != expected_value {
-                                bail!("Required to have fixed value '{}', but instead had '{}'",  expected_value, actual_value)
-                            } else {
-                                Ok(actual_value)
+                            let assertion_func = #assertion;
+                            if !assertion_func(actual_value) {
+                                bail!("Assertion failed: value of field '{}' ('{}') didn't pass assertion: '{}'", #field_name_str, actual_value, #assertion_string)
                             }
+                            Ok(actual_value)
                         })
                     })
                 }

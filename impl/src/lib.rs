@@ -43,7 +43,7 @@ pub struct ParselyFieldData {
     ty: syn::Type,
 
     // generics: Option<syn::Ident>,
-    fixed: Option<syn::Expr>,
+    assertion: Option<syn::Expr>,
     context: Option<Context>,
 
     /// 'when' is required when there's an optional field
