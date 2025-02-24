@@ -48,45 +48,41 @@ fn generate_parsely_read_impl_struct(
 
             let read_assignment = {
                 let mut read_assignment_output = TokenStream::new();
-                // TODO: separated these branches because wrapping 'assign_from' in 'Ok' didn't
-                // seem to play nicely with with_context when I first tried it.  I suspect that
-                // should be able to work though, so it might be nice to make these paths
-                // consistent again, even if the with_context is unnecessary for the 'assign_from'
-                // case.
                 if let Some(ref assign_from) = f.assign_from {
+                    // Because of this 'naked' Ok, compiler can complain about not being able to
+                    // infer the proper error type when we apply '?' to this statement later, so
+                    // fully-qualify it as a ParselyResult::<_>::Ok
                     read_assignment_output.extend(quote!{
-                        #assign_from
+                        ParselyResult::<_>::Ok(#assign_from)
                     })
+                } else if f.ty.is_collection() {
+                    let count_expr = f.count.as_ref().expect("Collection field '{field_name}' must have a 'count' attribute"); 
+                    read_assignment_output.extend(quote! {
+                        (0..(#count_expr)).map(|idx| {
+                            #read_type::read::<T, B>(buf, (#(#context_values,)*)).with_context(|| format!("Index {idx}")) 
+                        }).collect::<ParselyResult<Vec<_>>>()
+                    });
                 } else {
-                    if f.ty.is_collection() {
-                        let count_expr = f.count.as_ref().expect("Collection field '{field_name}' must have a 'count' attribute"); 
-                        read_assignment_output.extend(quote! {
-                            (0..(#count_expr)).map(|idx| {
-                                #read_type::read::<T, B>(buf, (#(#context_values,)*)).with_context(|| format!("Index {idx}")) 
-                            }).collect::<ParselyResult<Vec<_>>>()
-                        });
-                    } else {
-                        read_assignment_output.extend(quote! {
-                            #read_type::read::<T, B>(buf, (#(#context_values,)*))
-                        });
-                    }
-                    if let Some(ref assertion) = f.assertion {
-                        let assertion_string = quote! { #assertion }.to_string();
-                        // Note: assign the value of the assertion expression to a variable to make it
-                        // calleable.
-                        read_assignment_output.extend(quote! {
-                            .and_then(|actual_value| {
-                                let assertion_func = #assertion;
-                                if !assertion_func(actual_value) {
-                                    bail!("Assertion failed: value of field '{}' ('{}') didn't pass assertion: '{}'", #field_name_str, actual_value, #assertion_string)
-                                }
-                                Ok(actual_value)
-                            })
-                        })
-                    }
-                    let error_context = format!("Reading field '{field_name}'");
-                    read_assignment_output.extend(quote! { .with_context(|| #error_context)?});
+                    read_assignment_output.extend(quote! {
+                        #read_type::read::<T, B>(buf, (#(#context_values,)*))
+                    });
                 }
+                if let Some(ref assertion) = f.assertion {
+                    let assertion_string = quote! { #assertion }.to_string();
+                    // Note: assign the value of the assertion expression to a variable to make it
+                    // calleable.
+                    read_assignment_output.extend(quote! {
+                        .and_then(|actual_value| {
+                            let assertion_func = #assertion;
+                            if !assertion_func(actual_value) {
+                                bail!("Assertion failed: value of field '{}' ('{}') didn't pass assertion: '{}'", #field_name_str, actual_value, #assertion_string)
+                            }
+                            Ok(actual_value)
+                        })
+                    })
+                }
+                let error_context = format!("Reading field '{field_name}'");
+                read_assignment_output.extend(quote! { .with_context(|| #error_context)?});
                 read_assignment_output
             };
 

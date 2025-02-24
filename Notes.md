@@ -62,7 +62,12 @@ intended to be more of a direct "pass-through" assignment.  Could this even
 require an Ident, not an Expr?  If it's set around this idea of 'from_context',
 then that would be fine.
 
-TODO: implement the above ^ (support for assigning a field from context).  next: how can we make String fields work? need some way to specify a 'read' type (u8) and then a mapping function?
+Note on the current implementation of this: for consistency it wraps the
+assignment in an 'Ok' and then the same 'with_context' that would be added to
+any field read is added as well, even though it's totally redundant in this
+case (because it's just a simple assignment).  They _could_ be given special
+treatment and not have that added, but that'd require a unique code path and,
+for now at least, I think it'd be better to keep things aligned.
 
 is there an inherent "ordering" to all the attributes that we could always apply in a consistent way?
 
