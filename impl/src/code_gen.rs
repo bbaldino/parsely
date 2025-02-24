@@ -55,6 +55,21 @@ fn generate_parsely_read_impl_struct(
                     read_assignment_output.extend(quote!{
                         ParselyResult::<_>::Ok(#assign_from)
                     })
+                } else if  let Some(ref map) = f.map {
+                    // When doing a mapping, we need to do multiple operations:
+                    // 1. The initial read
+                    // 2. The mapping of the read value
+                    // So we encapsulate those inside of a block here to make it look like one
+                    // operations to be consistent with the other operations.
+                    let ts = map.parse::<TokenStream>().unwrap();
+                    read_assignment_output.extend(quote! {
+                        {
+                            let #field_name = ParselyRead::read::<T, B>(buf, ()).with_context(|| format!("Reading raw value for field '{}'", #field_name_str))?;
+                            let #field_name = (#ts)(#field_name).with_context(|| format!("Mapping raw value for field '{}'", #field_name_str))?;
+
+                            ParselyResult::<_>::Ok(#field_name)
+                        }
+                    })
                 } else if f.ty.is_collection() {
                     let count_expr = f.count.as_ref().expect("Collection field '{field_name}' must have a 'count' attribute"); 
                     read_assignment_output.extend(quote! {

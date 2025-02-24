@@ -55,6 +55,9 @@ pub struct ParselyFieldData {
     /// Instead of reading the value of this field from the buffer, assign it from the given
     /// [`syn::Ident`]
     assign_from: Option<syn::Ident>,
+
+    /// An optional mapping that will be applied to the read value
+    map: Option<syn::LitStr>,
 }
 
 #[derive(Debug, FromDeriveInput)]

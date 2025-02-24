@@ -69,6 +69,18 @@ case (because it's just a simple assignment).  They _could_ be given special
 treatment and not have that added, but that'd require a unique code path and,
 for now at least, I think it'd be better to keep things aligned.
 
+### 'mapping' a field
+
+My initial use case for a way to map a field (i.e. read a different type than
+what's defined in the struct and then apply some mapping to it to arrive at the
+final type) was for `String` fields in structs.  I took some inspiration from
+Deku's implementation but still found it didn't work very well for reading a
+`String` as a `Vec<u8>` and then mapping it because reading `Vec<u8>` itself
+takes a fair bit of special handling (including additional attributes like
+'count').  Deku appears to punt on this and recommends using custom readers for
+these cases, which seems like it may make sense.  Will probably play with some
+implementations of that and see how they feel.
+
 is there an inherent "ordering" to all the attributes that we could always apply in a consistent way?
 
 context reads (assigning the context tuple variables into named variables defined by the 'required_context' attribute): I think these can always be first
