@@ -24,3 +24,58 @@ parsely level makes sense?  And the trait definition can stay as it is.
 --> Decided to go with this: it makes the most sense for the byteorder to be
 determined at call time, not at definition time.  The byteorder will have to be
 passed to the initial read call and then will propagate to all nested calls.
+
+### 'assertion' attribute
+
+I originally had a 'fixed' attribute that required a field be set to a specific
+value, but I saw that I'd also had an 'assertion' attribute which seems to
+cover the 'fixed' use case plus more (supporting not only a specific value, but
+other types of assertions).  My original idea for 'fixed' might have been that
+it would automatically use that fixed value for writing, but the field would
+still need to be set in the struct, so I'm not sure it adds much.  We can still
+enforce the assertion on write as well, so will try just 'assertion' for now.
+
+### passing through context values
+
+I usually format packet "layers" like this:
+
+```
+struct Header { ... }
+
+struct SomePacket { 
+  header: Header,
+  ...other fields
+}
+```
+
+This makes it easy to progressively parse them: parse the header to figure out
+how to parse the rest of the payload, etc. But this means that part of a struct
+has already been parsed/comes from somewhere else.  So, in addition to using
+fields of that previously-parsed piece as context, it also needs to know not to
+try and read that field from the buffer.
+
+Should this try and leverage the more generic 'custom_reader' type attribute
+(to come later)?  Maybe we can avoid that altogether and just defer to newtypes
+and custom impls of ParselyRead for them?  Either way, I'm not sure we'd want
+to re-use that for this use case, since that will return a result and this is
+intended to be more of a direct "pass-through" assignment.  Could this even
+require an Ident, not an Expr?  If it's set around this idea of 'from_context',
+then that would be fine.
+
+TODO: implement the above ^ (support for assigning a field from context).  next: how can we make String fields work? need some way to specify a 'read' type (u8) and then a mapping function?
+
+is there an inherent "ordering" to all the attributes that we could always apply in a consistent way?
+
+context reads (assigning the context tuple variables into named variables defined by the 'required_context' attribute): I think these can always be first
+
+determining the type we'll actually read from the buffer: this will be the 'nested' type if its an Option or a Vec, for example.
+
+context values that need to be passed to the read method of the type: this just needs to happen before the read call
+
+generating the actual read call: this needs to know the read type and the context and if it's a collection
+
+fixed values: if the fixed attribute is present, this needs to be appended to the read call in an and_then block
+
+error context: this needs to be added at the very end of the read call
+
+optional field: if the field is optional, then the entire read call above gets wrapped in a conditional block that checks if the when clause passes

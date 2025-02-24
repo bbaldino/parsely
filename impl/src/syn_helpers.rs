@@ -20,7 +20,7 @@ impl TypeExts for syn::Type {
     }
 
     fn inner_type(&self) -> Option<&syn::Type> {
-        eprintln!("Getting inner type of {self:?}");
+        // eprintln!("Getting inner type of {self:?}");
         let syn::Type::Path(ty) = self else {
             return None;
         };

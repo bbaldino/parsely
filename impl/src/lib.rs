@@ -51,6 +51,10 @@ pub struct ParselyFieldData {
 
     /// 'count' is required when the field is a collection
     count: Option<syn::Expr>,
+
+    /// Instead of reading the value of this field from the buffer, assign it from the given
+    /// [`syn::Ident`]
+    assign_from: Option<syn::Ident>,
 }
 
 #[derive(Debug, FromDeriveInput)]
