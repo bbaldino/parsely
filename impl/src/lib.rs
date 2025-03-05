@@ -18,9 +18,10 @@ pub mod anyhow {
 
 use code_gen::generate_parsely_read_impl;
 use darling::{ast, FromDeriveInput, FromField};
-use model_types::{Context, RequiredContext};
+use model_types::{Assertion, Context, RequiredContext};
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
+use syn_helpers::TypeExts;
 
 #[doc(hidden)]
 pub fn derive_parsely_read(item: TokenStream) -> std::result::Result<TokenStream, syn::Error> {
@@ -43,7 +44,7 @@ pub struct ParselyFieldData {
     ty: syn::Type,
 
     // generics: Option<syn::Ident>,
-    assertion: Option<syn::Expr>,
+    assertion: Option<Assertion>,
     context: Option<Context>,
 
     /// 'when' is required when there's an optional field
@@ -58,6 +59,33 @@ pub struct ParselyFieldData {
 
     /// An optional mapping that will be applied to the read value
     map: Option<syn::LitStr>,
+
+    /// An optional custom reader function.  This function must have the same basic read signature
+    /// as [`ParselyRead::read`].
+    reader: Option<syn::Ident>,
+}
+
+impl ParselyFieldData {
+    /// Get the 'read type' of this field: for wrapper types (like [`Option`] or [`Vec`]), this will
+    /// be the inner type.
+    pub(crate) fn read_type(&self) -> &syn::Type {
+        if self.ty.is_option() || self.ty.is_collection() {
+            self.ty
+                .inner_type()
+                .expect("Option or collection has an inner type")
+        } else {
+            &self.ty
+        }
+    }
+
+    /// Get the context values that need to be passed to the read or write call for this field
+    pub(crate) fn context_values(&self) -> &[syn::Expr] {
+        if let Some(ref field_context) = self.context {
+            field_context.expressions()
+        } else {
+            &[]
+        }
+    }
 }
 
 #[derive(Debug, FromDeriveInput)]

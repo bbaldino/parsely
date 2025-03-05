@@ -56,8 +56,8 @@ impl FromMeta for RequiredContext {
 pub(crate) struct Context(Vec<syn::Expr>);
 
 impl Context {
-    pub(crate) fn expressions(&self) -> Vec<syn::Expr> {
-        self.0.clone()
+    pub(crate) fn expressions(&self) -> &[syn::Expr] {
+        &self.0
     }
 }
 
@@ -123,7 +123,7 @@ impl Parse for Local {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         match syn::Stmt::parse(input) {
             Ok(syn::Stmt::Local(l)) => Ok(Self(l)),
-            _ => todo!("error tbd"),
+            _ => Err(input.error("Failed to parse Local, expected a local declaration")),
         }
     }
 }
@@ -131,5 +131,38 @@ impl Parse for Local {
 impl ToTokens for Local {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         self.0.to_tokens(tokens)
+    }
+}
+
+#[derive(Debug)]
+pub(crate) enum Assertion {
+    Method(syn::Ident),
+    Closure(syn::ExprClosure),
+}
+
+impl Parse for Assertion {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        if let Ok(expr_closure) = syn::ExprClosure::parse(input) {
+            Ok(Assertion::Closure(expr_closure))
+        } else if let Ok(id) = syn::Ident::parse(input) {
+            Ok(Assertion::Method(id))
+        } else {
+            Err(input.error("Failed to parse Assertion: expected ExprClosure or Ident"))
+        }
+    }
+}
+
+impl ToTokens for Assertion {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Assertion::Method(m) => m.to_tokens(tokens),
+            Assertion::Closure(c) => c.to_tokens(tokens),
+        }
+    }
+}
+
+impl FromMeta for Assertion {
+    fn from_string(value: &str) -> darling::Result<Self> {
+        syn::parse_str::<Assertion>(value).map_err(darling::Error::custom)
     }
 }

@@ -96,3 +96,65 @@ fixed values: if the fixed attribute is present, this needs to be appended to th
 error context: this needs to be added at the very end of the read call
 
 optional field: if the field is optional, then the entire read call above gets wrapped in a conditional block that checks if the when clause passes
+
+Reader {
+  plain {
+    type
+  },
+  collection {
+    inner_type,
+    count
+  },
+  assign {
+    value
+  },
+  reader_func {
+    ident
+  },
+  map {
+    mapper
+  }
+}
+
+wrapper {
+  option {
+    when,
+    Reader,
+  },
+  assertion {
+    assertion_expr
+  }
+}
+
+plain read:
+  <type>::read(...)
+
+collection read:
+  (0..COUNT_EXPR).map(|idx| {
+    PLAIN_READ.with_context(|| idx...)
+  })
+
+option read:
+  if WHEN_EXPR {
+    Some(PLAIN_READ.with_context(...))
+  } else {
+    None
+  }
+
+assign from:
+  Ok(value)
+
+reader:
+  READER::read(...)
+
+// mapping is particularly special because we never explicitly identify the
+// original type or the mapped type: we let the mapper function work to infer
+// those for us so we can avoid that.  (technically knowing the mapped type
+// isn't hard, as it's the type of the field...)
+map:
+  let original = ParselyRead::read(...).with_context(...)
+  let mapped = (MAPPER)(original).with_context(...)
+  Ok(mapped)
+
+assertion:
+  currently the assertion is done as an and_then and appended onto whatever the output is (but _before_ the 'option' wrapper is added)
