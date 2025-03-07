@@ -97,7 +97,6 @@ fn generate_parsely_read_impl_struct(
         .iter()
         .map(|f| {
             let field_name = f.ident.as_ref().expect("Field has a name");
-            let field_name_str = field_name.to_string();
             let read_type = f.read_type();
 
             // Context values that we need to pass to this field's ParselyRead::read method
@@ -140,7 +139,8 @@ fn generate_parsely_read_impl_struct(
                 read_assignment_output
             };
 
-            let read_assignment = if f.ty.is_option() {
+            // TODO: what cases should we allow to bypass a 'when' clause for an Option?
+            let read_assignment = if f.ty.is_option() && f.map.is_none() && f.reader.is_none() {
                 let when_expr = f
                     .when
                     .as_ref()
