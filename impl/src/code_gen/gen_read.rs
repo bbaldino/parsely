@@ -4,7 +4,7 @@ use quote::quote;
 use crate::{
     model_types::{Assertion, RequiredContext},
     syn_helpers::TypeExts,
-    ParselyFieldData, ParselyReadData,
+    ParselyReadData, ParselyReadFieldData,
 };
 
 pub fn generate_parsely_read_impl(data: ParselyReadData) -> TokenStream {
@@ -80,7 +80,7 @@ fn wrap_in_optional(when_expr: &syn::Expr, inner: TokenStream) -> TokenStream {
 
 fn generate_parsely_read_impl_struct(
     struct_name: syn::Ident,
-    fields: darling::ast::Fields<ParselyFieldData>,
+    fields: darling::ast::Fields<ParselyReadFieldData>,
     required_context: Option<RequiredContext>,
 ) -> TokenStream {
     // Extract out the assignment expressions we'll do to assign the values of the context tuple
@@ -114,7 +114,7 @@ fn generate_parsely_read_impl_struct(
                     read_assignment_output.extend(quote! {
                         #reader::<T, B>(buf, (#(#context_values,)*))
                     })
-                } else if let Some(ref map) = f.map {
+                } else if let Some(ref map) = f.common.map {
                     let map_fn = map.parse::<TokenStream>().unwrap();
                     read_assignment_output.extend(generate_map_read(field_name, map_fn));
                 } else if f.ty.is_collection() {
@@ -130,7 +130,7 @@ fn generate_parsely_read_impl_struct(
                 } else {
                     read_assignment_output.extend(generate_plain_read(read_type, context_values));
                 }
-                if let Some(ref assertion) = f.assertion {
+                if let Some(ref assertion) = f.common.assertion {
                     read_assignment_output.extend(generate_assertion(field_name, assertion));
                 }
                 let error_context = format!("Reading field '{field_name}'");
@@ -139,15 +139,16 @@ fn generate_parsely_read_impl_struct(
             };
 
             // TODO: what cases should we allow to bypass a 'when' clause for an Option?
-            let read_assignment = if f.ty.is_option() && f.map.is_none() && f.reader.is_none() {
-                let when_expr = f
-                    .when
-                    .as_ref()
-                    .expect("Optional field '{field_name}' must have a 'when' attribute");
-                wrap_in_optional(when_expr, read_assignment)
-            } else {
-                quote! { #read_assignment }
-            };
+            let read_assignment =
+                if f.ty.is_option() && f.common.map.is_none() && f.reader.is_none() {
+                    let when_expr = f
+                        .when
+                        .as_ref()
+                        .expect("Optional field '{field_name}' must have a 'when' attribute");
+                    wrap_in_optional(when_expr, read_assignment)
+                } else {
+                    quote! { #read_assignment }
+                };
 
             quote! {
                 let #field_name = #read_assignment;

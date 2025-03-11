@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::{
-    model_types::RequiredContext, syn_helpers::TypeExts, ParselyFieldData, ParselyWriteData,
+    model_types::RequiredContext, syn_helpers::TypeExts, ParselyWriteData, ParselyWriteFieldData,
 };
 
 pub fn generate_parsely_write_impl(data: ParselyWriteData) -> TokenStream {
@@ -20,16 +20,12 @@ pub fn generate_parsely_write_impl(data: ParselyWriteData) -> TokenStream {
 
 fn generate_parsely_write_impl_struct(
     struct_name: syn::Ident,
-    fields: darling::ast::Fields<ParselyFieldData>,
+    fields: darling::ast::Fields<ParselyWriteFieldData>,
     required_context: Option<RequiredContext>,
 ) -> TokenStream {
     let (context_assignments, context_types) = if let Some(ref required_context) = required_context
     {
         (required_context.assignments(), required_context.types())
-        // (
-        //     Vec::<crate::model_types::Local>::new(),
-        //     Vec::<&syn::Type>::new(),
-        // )
     } else {
         (Vec::new(), Vec::new())
     };
@@ -39,9 +35,10 @@ fn generate_parsely_write_impl_struct(
             let field_name = f.ident.as_ref().expect("Field has a name");
             let field_name_string = field_name.to_string();
             let write_type = f.buffer_type();
+            let context_values = f.context_values();
             let mut field_write_output = TokenStream::new();
 
-            if let Some(ref assertion) = f.assertion {
+            if let Some(ref assertion) = f.common.assertion {
                 let assertion_string = quote! { #assertion }.to_string();
                 field_write_output.extend(quote! {
                     let assertion_func = #assertion;
@@ -51,21 +48,25 @@ fn generate_parsely_write_impl_struct(
                 })
             }
 
-            if f.ty.is_option() {
+            if let Some(ref writer) = f.writer {
+                field_write_output.extend(quote! {
+                    #writer::<T, B>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
+                });
+            } else if f.ty.is_option() {
                 field_write_output.extend(quote! {
                     if let Some(ref v) = self.#field_name {
-                        #write_type::write::<T, B>(v, buf, ctx).with_context(|| format!("Writing field '{}'", #field_name_string))?;
+                        #write_type::write::<T, B>(v, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
                     }
                 });
             } else if f.ty.is_collection() {
                 field_write_output.extend(quote! {
                     self.#field_name.iter().enumerate().map(|(idx, v)| {
-                        #write_type::write::<T, B>(v, buf, ctx).with_context(|| format!("Index {idx}"))
+                        #write_type::write::<T, B>(v, buf, (#(#context_values,)*)).with_context(|| format!("Index {idx}"))
                     }).collect::<ParselyResult<Vec<_>>>().with_context(|| format!("Writing field '{}'", #field_name_string))?;
                 });
             } else {
                 field_write_output.extend(quote! {
-                    #write_type::write::<T, B>(&self.#field_name, buf, ctx).with_context(|| format!("Writing field '{}'", #field_name_string))?;
+                    #write_type::write::<T, B>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
                 });
             }
 
