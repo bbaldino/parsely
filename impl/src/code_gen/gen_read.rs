@@ -54,7 +54,6 @@ fn generate_map_read(field_name: &syn::Ident, map_fn: TokenStream) -> TokenStrea
 /// Generate an assertion 'block' that can be appended to a [`Result`] type by embedding it in an
 /// `and_then` block.  Note that we take a [`syn::Expr`] for the assertion, but it needs to
 /// effectively be a function (or a closure) which accepts the value type and returns a boolean.
-/// TODO: look into defining a custom type that's either a syn::Ident or a syn::ExprClosure?
 fn generate_assertion(field_name: &syn::Ident, assertion: &Assertion) -> TokenStream {
     let assertion_string = quote! { #assertion }.to_string();
     let field_name_string = field_name.to_string();
@@ -97,7 +96,7 @@ fn generate_parsely_read_impl_struct(
         .iter()
         .map(|f| {
             let field_name = f.ident.as_ref().expect("Field has a name");
-            let read_type = f.read_type();
+            let read_type = f.buffer_type();
 
             // Context values that we need to pass to this field's ParselyRead::read method
             let context_values = f.context_values();
