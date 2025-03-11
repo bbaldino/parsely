@@ -2,8 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::{
-    model_types::RequiredContext, syn_helpers::TypeExts, ParselyData, ParselyFieldData,
-    ParselyWriteData,
+    model_types::RequiredContext, syn_helpers::TypeExts, ParselyFieldData, ParselyWriteData,
 };
 
 pub fn generate_parsely_write_impl(data: ParselyWriteData) -> TokenStream {

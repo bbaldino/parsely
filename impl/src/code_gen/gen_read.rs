@@ -4,10 +4,10 @@ use quote::quote;
 use crate::{
     model_types::{Assertion, RequiredContext},
     syn_helpers::TypeExts,
-    ParselyData, ParselyFieldData,
+    ParselyFieldData, ParselyReadData,
 };
 
-pub fn generate_parsely_read_impl(data: ParselyData) -> TokenStream {
+pub fn generate_parsely_read_impl(data: ParselyReadData) -> TokenStream {
     let struct_name = data.ident;
     if data.data.is_struct() {
         generate_parsely_read_impl_struct(

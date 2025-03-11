@@ -27,7 +27,7 @@ use syn_helpers::TypeExts;
 #[doc(hidden)]
 pub fn derive_parsely_read(item: TokenStream) -> std::result::Result<TokenStream, syn::Error> {
     let ast: DeriveInput = syn::parse2(item)?;
-    let data = ParselyData::from_derive_input(&ast)?;
+    let data = ParselyReadData::from_derive_input(&ast)?;
     // eprintln!("parsely_read data = {data:#?}");
     // eprintln!("HELLO, WORLD, item = {ast:#?}");
 
@@ -105,7 +105,7 @@ impl ParselyFieldData {
     attributes(parsely, parsely_read, parsely_write),
     supports(struct_any, enum_any)
 )]
-pub struct ParselyData {
+pub struct ParselyReadData {
     ident: syn::Ident,
     required_context: Option<RequiredContext>,
     data: ast::Data<(), ParselyFieldData>,
