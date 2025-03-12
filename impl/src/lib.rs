@@ -6,8 +6,9 @@ pub mod parsely_write;
 mod syn_helpers;
 
 pub use bit_cursor::{
-    bit_cursor::BitCursor, bit_read::BitRead, bit_write::BitWrite, byte_order::BigEndian,
-    byte_order::ByteOrder, byte_order::LittleEndian, byte_order::NetworkOrder,
+    bit_cursor::BitCursor, bit_read::BitRead, bit_read_exts::BitReadExts, bit_write::BitWrite,
+    bit_write_exts::BitWriteExts, byte_order::BigEndian, byte_order::ByteOrder,
+    byte_order::LittleEndian, byte_order::NetworkOrder,
 };
 pub mod nsw_types {
     pub use bit_cursor::nsw_types::*;
