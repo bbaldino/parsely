@@ -42,8 +42,8 @@ fn generate_parsely_write_impl_struct(
                 let assertion_string = quote! { #assertion }.to_string();
                 field_write_output.extend(quote! {
                     let assertion_func = #assertion;
-                    if !assertion_func(self.#field_name) {
-                        bail!("Assertion failed: value of field '{}' ('{}') didn't pass assertion: '{}'", #field_name_string, self.#field_name, #assertion_string)
+                    if !assertion_func(&self.#field_name) {
+                        bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name_string, self.#field_name, #assertion_string)
                     }
                 })
             }

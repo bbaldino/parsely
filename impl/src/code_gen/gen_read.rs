@@ -60,8 +60,8 @@ fn generate_assertion(field_name: &syn::Ident, assertion: &Assertion) -> TokenSt
     quote! {
         .and_then(|actual_value| {
             let assertion_func = #assertion;
-            if !assertion_func(actual_value) {
-                bail!("Assertion failed: value of field '{}' ('{}') didn't pass assertion: '{}'", #field_name_string, actual_value, #assertion_string)
+            if !assertion_func(&actual_value) {
+                bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name_string, actual_value, #assertion_string)
             }
             Ok(actual_value)
         })
