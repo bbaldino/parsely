@@ -52,6 +52,12 @@ fn generate_parsely_write_impl_struct(
                 field_write_output.extend(quote! {
                     #writer::<T, B>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
                 });
+            } else if let Some(ref map) = f.common.map {
+                let map_fn = map.parse::<TokenStream>().unwrap();
+                field_write_output.extend(quote! {
+                    let mapped_value = (#map_fn)(&self.#field_name).with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))?;
+                    ParselyWrite::write::<T, B>(&mapped_value, buf, ()).with_context(|| format!("Writing mapped value for field '{}'", #field_name_string))?;
+                });
             } else if f.ty.is_option() {
                 field_write_output.extend(quote! {
                     if let Some(ref v) = self.#field_name {

@@ -47,12 +47,8 @@ pub fn derive_parsely_write(item: TokenStream) -> std::result::Result<TokenStrea
 
 #[derive(Debug, FromField, FromMeta)]
 pub struct ParselyCommonFieldData {
-    /// Get the ident of the field. For fields in tuple or newtype structs or
-    /// enum bodies, this can be `None`.
-    // ident: Option<syn::Ident>,
-
-    /// This magic field name pulls the type from the input.
-    // ty: syn::Type,
+    // Note: 'magic' fields (ident, ty, etc.) don't work with 'flatten' so can't be held here.
+    // See https://github.com/TedDriggs/darling/issues/330
 
     // generics: Option<syn::Ident>,
     assertion: Option<Assertion>,
@@ -68,7 +64,9 @@ pub struct ParselyCommonFieldData {
 #[darling(attributes(parsely, parsely_read))]
 pub struct ParselyReadFieldData {
     ident: Option<syn::Ident>,
+
     ty: syn::Type,
+
     #[darling(flatten)]
     common: ParselyCommonFieldData,
     /// 'count' is required when the field is a collection
@@ -114,7 +112,9 @@ impl ParselyReadFieldData {
 #[darling(attributes(parsely, parsely_write))]
 pub struct ParselyWriteFieldData {
     ident: Option<syn::Ident>,
+
     ty: syn::Type,
+
     #[darling(flatten)]
     common: ParselyCommonFieldData,
     /// An optional custom writer function.  This function must have the same signature
