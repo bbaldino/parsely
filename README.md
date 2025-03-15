@@ -1,6 +1,6 @@
 # Parsely
 
-Convenient type serialization and deserialization in Rust.
+Convenient type serialization and deserialization in Rust for binary formats.
 
 Parsely uses derive macros to automatically implement serialization and
 deserialization methods for your types.
@@ -36,6 +36,66 @@ pub struct RtcpHeader {
     pub length_field: u16,
 }
 ```
+
+Reading that struct from a `Vec<u8>` looks like this:
+
+```rust
+use parsely::*;
+
+fn do_read(data: Vec<u8>) {
+  let mut cursor = BitCursor::from_vec(data);
+
+  let rtcp_header = RtcpHeader::read::<NetworkOrder, _>(&mut cursor, ())
+    .context("Reading RtcpHeader")
+    .unwrap();
+}
+```
+
+Writing it out to a buffer looks like this:
+
+```rust
+use parsely::*;
+
+fn do_write(rtcp_header: RtcpHeader) {
+  let mut data: Vec<u8> = vec![0; 2];
+  let mut cursor = BitCursor::from_vec(data);
+  
+  let result = header.write::<NetworkOrder, _>(&mut cursor, ());
+}
+```
+
+## Traits
+
+The `ParselyRead` trait is used for reading data from a buffer.  `ParselyRead`
+can be derived and its logic customized via the attributes described below, but
+can also be manually implemented.
+
+```rust
+pub trait ParselyRead<Ctx>: Sized {
+    fn read<T: ByteOrder, B: BitRead>(buf: &mut B, ctx: Ctx) -> ParselyResult<Self>;
+}
+```
+
+The `ParselyWrite` trait is used for writing data to a buffer.  Like
+`ParselyRead`, `ParselyWrite` can be derived and customized or manually
+implemented.
+
+```rust
+pub trait ParselyWrite<Ctx>: Sized {
+    fn write<T: ByteOrder, B: BitWrite>(&self, buf: &mut B, ctx: Ctx) -> ParselyResult<()>;
+}
+```
+
+Sometimes serializing or deserializing a type requires additional data that may
+come from somewhere else.  The `Ctx` generic can be defined as a tuple and the
+`ctx` argument can be used to pass additional values.
+
+See the [Context and required context](#context-and-required-context) section below for more information.
+
+The `ByteOrder` generic is used to describe how the data is laid out in the
+buffer (e.g. LittleEndian or BigEndian).  The `BitRead`/`BitWrite` types are
+the buffer to read from/write to.  It comes from the
+[bit-cursor](http://github.com/bbaldino/bitcursor) crate.
 
 ## Attributes
 
@@ -134,7 +194,72 @@ struct Foo {
 
 ### Count
 
+When reading a Vec<T>, we need to know how many elements to read.  The `count`
+attribute is used to describe how many elements should be read from the buffer.
+
+Any expression can be passed that evaluates to a number that can be used in a
+range expression.
+
+| Mode | Available |
+| --------- | -------- |
+| `#[parsely]` | :x: |
+| `#[parsely_read]` | :white_check_mark: |
+| `#[parsely_write]` | :x: |
+
+#### Examples
+
+<details>
+  <summary>Click to expand</summary>
+
+This (quite contrived) example has a boolean field but reads a u1 from the
+buffer and converts it.  On write it does the opposite.  
+
+```rust
+#[derive(ParselyRead, ParselyWrite)]
+struct Foo {
+    data_size: u8,
+    // Here we refer to the previously-read 'data_size' field to describe the length
+    #[parsley_read(count = "data_size")]
+    data: Vec<u8>,
+}
+
+```
+
+</details>
+
 ### When
+
+Optional fields need to be given a predicate that describe when they should be
+attempted to be read. The `when` attribute takes an expression that evaluates
+to a boolean.  A result of true means the field will be read from the buffer,
+false means it will be skipped and set to `None`.
+
+| Mode | Available |
+| --------- | -------- |
+| `#[parsely]` | :x: |
+| `#[parsely_read]` | :white_check_mark: |
+| `#[parsely_write]` | :x: |
+
+#### Examples
+
+<details>
+  <summary>Click to expand</summary>
+
+This (quite contrived) example has a boolean field but reads a u1 from the
+buffer and converts it.  On write it does the opposite.  
+
+```rust
+#[derive(ParselyRead, ParselyWrite)]
+struct Foo {
+    has_value: bool,
+    // Here we refer to the previously-read 'has_value' field to describe whether or not this field is present
+    #[parsley_read(when = "has_value")]
+    value: Option<u32>,
+}
+
+```
+
+</details>
 
 ### Assign from
 
@@ -144,10 +269,15 @@ struct Foo {
 
 ### Context and required context
 
-Sometimes in order to read or write a struct or field, additional data is needed.  Structs can declare what additional data is needed via the `required_context` attribute.  Additional data can be passed to fields via the `context` attribute.
+Sometimes in order to read or write a struct or field, additional data is
+needed.  Structs can declare what additional data is needed via the
+`required_context` attribute.  Additional data can be also be passed down to
+fields via the `context` attribute.  Any required_context or previously-parsed
+field name can be used.
 
 The argument passed to `required_context` is a comma-separated list of typed
-function arguments (e.g. `size: u8, name: String`).  
+function arguments (e.g. `size: u8, name: String`).  The variable names there
+can be used in other attributes.
 
 The argument passed to `context` is a comma-separated list of expressions that
 evaluate to values that should be passed to that field's read and/or write
@@ -164,29 +294,32 @@ method.
 <details>
   <summary>Click to expand</summary>
 
-Here, additional data is required in order to read `Foo`, and additional data
-is passed on to one of its fields:
+Here, a header is parsed first which contains information needed to parse the
+rest of the payload.  A field from the header is passed as context to the
+payload parsing.
 
 ```rust
 #[derive(ParselyRead, ParselyWrite)]
-#[parsely_read(required_context("size_one: u32", "size_two: u32"))]
-struct Inner {
-    #[parsely_read(count = "size_one")]
-    data: Vec<u8>,
-    #[parsely_read(count = "size_two")]
-    data2: Vec<u8>,
+struct FooHeader {
+  packet_type: u8,
+  payload_len: u32,
 }
 
 #[derive(ParselyRead, ParselyWrite)]
-#[parsely_read(required_context("size: u32"))]
+// Foo needs additional context in order to be parsed from a buffer
+#[parsely_read(required_context("len: u32"))]
 struct Foo {
-    // Use 'size' to determine the number of elements to read into 'data'
-    #[parsely_read(count = "size")]
+    // The required_context variable is accessible and can be referred to when
+    // describing the length of the Vec that should be read
+    #[parsely_read(count = "len")]
     data: Vec<u8>,
-    // Pass additional values to Inner's read method.  Any expression is supported.
-    #[parsely_read(context("size / 2", "size / 2"))]
-    inner: Inner,
 }
+
+
+let foo_header = FooHeader::read<NetworkOrder, _>(&mut buf, ()).unwrap();
+// Pass the relevant field from header to the payload's read method
+let foo_payload = Foo::read<NetworkOrder, _>(&mut buf, (foo_header.payload_len,)).unwrap();
+
 ```
 
 </details>
