@@ -1,4 +1,4 @@
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::{
@@ -84,10 +84,10 @@ fn generate_parsely_write_impl_struct(
 
     // sync_args_types lays out the types inside this struct's sync method args tuple. Unless a
     // 'sync_args' attribute was used, by default it doesn't need any.
-    let sync_args_types = if let Some(ref sync_args) = sync_args {
-        sync_args.types()
+    let (sync_args_variables, sync_args_types) = if let Some(ref sync_args) = sync_args {
+        (sync_args.names(), sync_args.types())
     } else {
-        Vec::new()
+        (Vec::new(), Vec::new())
     };
 
     let sync_field_calls = fields
@@ -107,15 +107,13 @@ fn generate_parsely_write_impl_struct(
             // Note: I think these two fields should be mutually exclusive, but will see how it
             // goes
             if let Some(ref sync_func) = f.sync_func {
-                let sync_func_name =
-                    syn::Ident::new(&format!("{field_name}_sync_func"), Span::call_site());
                 quote! {
-                    let #sync_func_name = #sync_func;
-                    self.#field_name = #sync_func_name(sync_args).with_context(|| format!("Syncing field {}", #field_name_string))?;
+                    self.#field_name = #sync_func.with_context(|| format!("Syncing field '{}'", #field_name_string))?;
                 }
             } else if let Some(ref sync_with) = f.sync_with {
+                let sync_with = sync_with.expressions();
                 quote! {
-                    self.#field_name.sync((#sync_with,)).with_context(|| format!("Syncing field {}", #field_name_string))?;
+                    self.#field_name.sync((#(#sync_with,)*)).with_context(|| format!("Syncing field '{}'", #field_name_string))?;
                 }
             } else {
                 unreachable!()
@@ -135,7 +133,7 @@ fn generate_parsely_write_impl_struct(
         }
 
         impl #struct_name {
-            pub fn sync(&mut self, sync_args: (#(#sync_args_types,)*)) -> ParselyResult<()> {
+            pub fn sync(&mut self, (#(#sync_args_variables,)*): (#(#sync_args_types,)*)) -> ParselyResult<()> {
                 #(#sync_field_calls)*
 
                 Ok(())

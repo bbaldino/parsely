@@ -251,3 +251,6 @@ ran into is that `ParselyWrite::write` currently takes `&self`, but if `write` i
 going to automatically call `sync` then it'd need `&mut self` and I'm not sure
 I want to do that.  So maybe the call to `sync` will have to be manual and it
 will just be generated to do the right things?  Going with that for now.
+
+TODO:
+  can we get rid of the ambiguity of a plain "Ok" in sync_func? Could we make it such that plain (no Ok needed) would also work?

@@ -7,8 +7,13 @@ use syn::parse::Parse;
 pub(crate) struct TypedFnArgList(pub(crate) Vec<TypedFnArg>);
 
 impl TypedFnArgList {
+    /// Get the types from this [`TypedFnArgList`] as a vec
     pub(crate) fn types(&self) -> Vec<&syn::Type> {
         self.0.iter().map(|t| t.ty()).collect()
+    }
+
+    pub(crate) fn names(&self) -> Vec<&syn::Ident> {
+        self.0.iter().map(|t| t.name()).collect()
     }
 
     // TODO: this is context-specific, but now this type is more generic.  move it?
@@ -105,7 +110,17 @@ impl TypedFnArg {
     pub(crate) fn ty(&self) -> &syn::Type {
         match self.0 {
             syn::FnArg::Typed(ref t) => &t.ty,
-            _ => unreachable!(),
+            _ => unreachable!("TypedFnArg should always be typed"),
+        }
+    }
+
+    pub(crate) fn name(&self) -> &syn::Ident {
+        match self.0 {
+            syn::FnArg::Typed(ref pat_type) => match *pat_type.pat {
+                syn::Pat::Ident(ref pat_ident) => &pat_ident.ident,
+                _ => unreachable!("TypedFnArg should always have an ident"),
+            },
+            _ => unreachable!("TypedFnArg should always be typed"),
         }
     }
 }
@@ -136,6 +151,39 @@ impl ToTokens for Local {
 }
 
 #[derive(Debug)]
+pub(crate) enum ExprOrFunc {
+    Expr(syn::Expr),
+    Func(syn::Ident),
+}
+
+impl Parse for ExprOrFunc {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        if let Ok(expr) = syn::Expr::parse(input) {
+            Ok(ExprOrFunc::Expr(expr))
+        } else if let Ok(id) = syn::Ident::parse(input) {
+            Ok(ExprOrFunc::Func(id))
+        } else {
+            Err(input.error("Failed to parse ExporOrFunc: expected ExprClosure or Ident"))
+        }
+    }
+}
+
+impl ToTokens for ExprOrFunc {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            ExprOrFunc::Expr(e) => e.to_tokens(tokens),
+            ExprOrFunc::Func(f) => f.to_tokens(tokens),
+        }
+    }
+}
+
+impl FromMeta for ExprOrFunc {
+    fn from_string(value: &str) -> darling::Result<Self> {
+        syn::parse_str::<ExprOrFunc>(value).map_err(darling::Error::custom)
+    }
+}
+
+#[derive(Debug)]
 pub(crate) enum FuncOrClosure {
     Func(syn::Ident),
     Closure(syn::ExprClosure),
@@ -148,7 +196,7 @@ impl Parse for FuncOrClosure {
         } else if let Ok(id) = syn::Ident::parse(input) {
             Ok(FuncOrClosure::Func(id))
         } else {
-            Err(input.error("Failed to parse Assertion: expected ExprClosure or Ident"))
+            Err(input.error("Failed to parse FuncOrClosure: expected ExprClosure or Ident"))
         }
     }
 }

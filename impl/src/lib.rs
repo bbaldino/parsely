@@ -20,7 +20,7 @@ pub mod anyhow {
 
 use code_gen::{gen_read::generate_parsely_read_impl, gen_write::generate_parsely_write_impl};
 use darling::{ast, FromDeriveInput, FromField, FromMeta};
-use model_types::{Context, FuncOrClosure, TypedFnArgList};
+use model_types::{Context, ExprOrFunc, FuncOrClosure, TypedFnArgList};
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
 use syn_helpers::TypeExts;
@@ -123,12 +123,11 @@ pub struct ParselyWriteFieldData {
 
     /// An optional function or closure that will be called to synchronize this field based on some
     /// external data
-    sync_func: Option<FuncOrClosure>,
+    sync_func: Option<ExprOrFunc>,
 
     /// An optional list of expressions that should be passed to this field's sync method before
     /// writing it
-    /// TODO: make a list, and maybe do a custom type?
-    sync_with: Option<syn::Expr>,
+    sync_with: Option<Context>,
 }
 
 impl ParselyWriteFieldData {
@@ -156,10 +155,7 @@ impl ParselyWriteFieldData {
 }
 
 #[derive(Debug, FromDeriveInput)]
-#[darling(
-    attributes(parsely, parsely_read, parsely_write),
-    supports(struct_any, enum_any)
-)]
+#[darling(attributes(parsely, parsely_read), supports(struct_any, enum_any))]
 pub struct ParselyReadData {
     ident: syn::Ident,
     required_context: Option<TypedFnArgList>,
