@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::{
-    model_types::RequiredContext, syn_helpers::TypeExts, ParselyWriteData, ParselyWriteFieldData,
+    model_types::TypedFnArgList, syn_helpers::TypeExts, ParselyWriteData, ParselyWriteFieldData,
 };
 
 pub fn generate_parsely_write_impl(data: ParselyWriteData) -> TokenStream {
@@ -21,7 +21,7 @@ pub fn generate_parsely_write_impl(data: ParselyWriteData) -> TokenStream {
 fn generate_parsely_write_impl_struct(
     struct_name: syn::Ident,
     fields: darling::ast::Fields<ParselyWriteFieldData>,
-    required_context: Option<RequiredContext>,
+    required_context: Option<TypedFnArgList>,
 ) -> TokenStream {
     let (context_assignments, context_types) = if let Some(ref required_context) = required_context
     {

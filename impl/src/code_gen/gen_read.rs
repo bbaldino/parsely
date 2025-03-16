@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::{
-    model_types::{Assertion, RequiredContext},
+    model_types::{Assertion, TypedFnArgList},
     syn_helpers::TypeExts,
     ParselyReadData, ParselyReadFieldData,
 };
@@ -81,7 +81,7 @@ fn wrap_in_optional(when_expr: &syn::Expr, inner: TokenStream) -> TokenStream {
 fn generate_parsely_read_impl_struct(
     struct_name: syn::Ident,
     fields: darling::ast::Fields<ParselyReadFieldData>,
-    required_context: Option<RequiredContext>,
+    required_context: Option<TypedFnArgList>,
 ) -> TokenStream {
     // Extract out the assignment expressions we'll do to assign the values of the context tuple
     // to the configured variable names, as well as the types of the context tuple.

@@ -20,7 +20,7 @@ pub mod anyhow {
 
 use code_gen::{gen_read::generate_parsely_read_impl, gen_write::generate_parsely_write_impl};
 use darling::{ast, FromDeriveInput, FromField, FromMeta};
-use model_types::{Assertion, Context, RequiredContext};
+use model_types::{Assertion, Context, TypedFnArgList};
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
 use syn_helpers::TypeExts;
@@ -153,7 +153,7 @@ impl ParselyWriteFieldData {
 )]
 pub struct ParselyReadData {
     ident: syn::Ident,
-    required_context: Option<RequiredContext>,
+    required_context: Option<TypedFnArgList>,
     data: ast::Data<(), ParselyReadFieldData>,
 }
 
@@ -161,6 +161,6 @@ pub struct ParselyReadData {
 #[darling(attributes(parsely, parsely_write), supports(struct_any, enum_any))]
 pub struct ParselyWriteData {
     ident: syn::Ident,
-    required_context: Option<RequiredContext>,
+    required_context: Option<TypedFnArgList>,
     data: ast::Data<(), ParselyWriteFieldData>,
 }

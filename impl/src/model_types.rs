@@ -4,9 +4,9 @@ use quote::{quote, ToTokens};
 use syn::parse::Parse;
 
 #[derive(Debug)]
-pub(crate) struct RequiredContext(pub(crate) Vec<TypedFnArg>);
+pub(crate) struct TypedFnArgList(pub(crate) Vec<TypedFnArg>);
 
-impl RequiredContext {
+impl TypedFnArgList {
     pub(crate) fn types(&self) -> Vec<&syn::Type> {
         self.0.iter().map(|t| t.ty()).collect()
     }
@@ -26,7 +26,7 @@ impl RequiredContext {
     }
 }
 
-impl FromMeta for RequiredContext {
+impl FromMeta for TypedFnArgList {
     fn from_none() -> Option<Self> {
         None
     }
