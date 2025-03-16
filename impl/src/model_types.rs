@@ -135,34 +135,34 @@ impl ToTokens for Local {
 }
 
 #[derive(Debug)]
-pub(crate) enum Assertion {
-    Method(syn::Ident),
+pub(crate) enum FuncOrClosure {
+    Func(syn::Ident),
     Closure(syn::ExprClosure),
 }
 
-impl Parse for Assertion {
+impl Parse for FuncOrClosure {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         if let Ok(expr_closure) = syn::ExprClosure::parse(input) {
-            Ok(Assertion::Closure(expr_closure))
+            Ok(FuncOrClosure::Closure(expr_closure))
         } else if let Ok(id) = syn::Ident::parse(input) {
-            Ok(Assertion::Method(id))
+            Ok(FuncOrClosure::Func(id))
         } else {
             Err(input.error("Failed to parse Assertion: expected ExprClosure or Ident"))
         }
     }
 }
 
-impl ToTokens for Assertion {
+impl ToTokens for FuncOrClosure {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Assertion::Method(m) => m.to_tokens(tokens),
-            Assertion::Closure(c) => c.to_tokens(tokens),
+            FuncOrClosure::Func(m) => m.to_tokens(tokens),
+            FuncOrClosure::Closure(c) => c.to_tokens(tokens),
         }
     }
 }
 
-impl FromMeta for Assertion {
+impl FromMeta for FuncOrClosure {
     fn from_string(value: &str) -> darling::Result<Self> {
-        syn::parse_str::<Assertion>(value).map_err(darling::Error::custom)
+        syn::parse_str::<FuncOrClosure>(value).map_err(darling::Error::custom)
     }
 }

@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::{
-    model_types::{Assertion, TypedFnArgList},
+    model_types::{FuncOrClosure, TypedFnArgList},
     syn_helpers::TypeExts,
     ParselyReadData, ParselyReadFieldData,
 };
@@ -54,7 +54,7 @@ fn generate_map_read(field_name: &syn::Ident, map_fn: TokenStream) -> TokenStrea
 /// Generate an assertion 'block' that can be appended to a [`Result`] type by embedding it in an
 /// `and_then` block.  Note that we take a [`syn::Expr`] for the assertion, but it needs to
 /// effectively be a function (or a closure) which accepts the value type and returns a boolean.
-fn generate_assertion(field_name: &syn::Ident, assertion: &Assertion) -> TokenStream {
+fn generate_assertion(field_name: &syn::Ident, assertion: &FuncOrClosure) -> TokenStream {
     let assertion_string = quote! { #assertion }.to_string();
     let field_name_string = field_name.to_string();
     quote! {

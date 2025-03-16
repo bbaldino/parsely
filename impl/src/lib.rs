@@ -20,7 +20,7 @@ pub mod anyhow {
 
 use code_gen::{gen_read::generate_parsely_read_impl, gen_write::generate_parsely_write_impl};
 use darling::{ast, FromDeriveInput, FromField, FromMeta};
-use model_types::{Assertion, Context, TypedFnArgList};
+use model_types::{FuncOrClosure, Context, TypedFnArgList};
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
 use syn_helpers::TypeExts;
@@ -51,7 +51,7 @@ pub struct ParselyCommonFieldData {
     // See https://github.com/TedDriggs/darling/issues/330
 
     // generics: Option<syn::Ident>,
-    assertion: Option<Assertion>,
+    assertion: Option<FuncOrClosure>,
 
     /// Values that need to be passed as context to this fields read or write method
     context: Option<Context>,
