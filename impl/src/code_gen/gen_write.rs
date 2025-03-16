@@ -1,4 +1,4 @@
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 
 use crate::{
@@ -12,6 +12,7 @@ pub fn generate_parsely_write_impl(data: ParselyWriteData) -> TokenStream {
             struct_name,
             data.data.take_struct().unwrap(),
             data.required_context,
+            data.sync_args,
         )
     } else {
         todo!()
@@ -22,6 +23,7 @@ fn generate_parsely_write_impl_struct(
     struct_name: syn::Ident,
     fields: darling::ast::Fields<ParselyWriteFieldData>,
     required_context: Option<TypedFnArgList>,
+    sync_args: Option<TypedFnArgList>,
 ) -> TokenStream {
     let (context_assignments, context_types) = if let Some(ref required_context) = required_context
     {
@@ -80,12 +82,61 @@ fn generate_parsely_write_impl_struct(
         })
         .collect::<Vec<TokenStream>>();
 
+    // sync_args_types lays out the types inside this struct's sync method args tuple. Unless a
+    // 'sync_args' attribute was used, by default it doesn't need any.
+    let sync_args_types = if let Some(ref sync_args) = sync_args {
+        sync_args.types()
+    } else {
+        Vec::new()
+    };
+
+    let sync_field_calls = fields
+        .iter()
+        // Filter for any field that has a 'sync_func' or a 'sync_with' attribute:
+        // 'sync_func' attributes mean this field needs to be updated based on some data that was
+        // passed in to the sync method
+        // 'sync_with' attirbutes mean this field's 'sync' method needs to be called with some data
+        // TODO: I'm pretty sure we need to _always_ call the type's sync method, but built-in
+        // types don't currently have a sync method defined, so that'll fail in some cases.  I
+        // think sync will need to become a trait instead and we'll need to generate impls for all
+        // ParselyWrite types.  Or maybe the sync method should be part of the ParselyWrite trait?
+        .filter(|f| f.sync_func.is_some() || f.sync_with.is_some())
+        .map(|f| {
+            let field_name = f.ident.as_ref().expect("Field has a name");
+            let field_name_string = field_name.to_string();
+            // Note: I think these two fields should be mutually exclusive, but will see how it
+            // goes
+            if let Some(ref sync_func) = f.sync_func {
+                let sync_func_name =
+                    syn::Ident::new(&format!("{field_name}_sync_func"), Span::call_site());
+                quote! {
+                    let #sync_func_name = #sync_func;
+                    self.#field_name = #sync_func_name(sync_args).with_context(|| format!("Syncing field {}", #field_name_string))?;
+                }
+            } else if let Some(ref sync_with) = f.sync_with {
+                quote! {
+                    self.#field_name.sync((#sync_with,)).with_context(|| format!("Syncing field {}", #field_name_string))?;
+                }
+            } else {
+                unreachable!()
+            }
+        })
+        .collect::<Vec<TokenStream>>();
+
     quote! {
         impl parsely::ParselyWrite<(#(#context_types,)*)> for #struct_name {
             fn write<T: parsely::ByteOrder, B: parsely::BitWrite>(&self, buf: &mut B, ctx: (#(#context_types,)*)) -> parsely::ParselyResult<()> {
                 #(#context_assignments)*
 
                 #(#field_writes)*
+
+                Ok(())
+            }
+        }
+
+        impl #struct_name {
+            pub fn sync(&mut self, sync_args: (#(#sync_args_types,)*)) -> ParselyResult<()> {
+                #(#sync_field_calls)*
 
                 Ok(())
             }

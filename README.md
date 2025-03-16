@@ -267,6 +267,96 @@ struct Foo {
 
 ### Writer
 
+### Dependent fields
+
+Often times packets will have fields whose values depend on other fields.  A
+header might have a length field that should reflect the size of a payload.
+`Parsely` defines multiple attributes to define these relationships:
+
+The `sync_args` attribute is used on a struct to define what external
+information is needed in order to sync its fields correctly.
+
+The `sync_func` attribute is used on a specific field to define how it should
+use the args from `sync_args` in order to sync.
+
+The `sync_with` attribute is used to pass information to a field to synchronize
+it.
+
+All types annotated with `ParselyWrite` have a `sync` method generated that
+looks like this:
+
+```rust
+pub fn sync(&mut self, sync_args: ___) -> ParselyResult<()>;
+```
+
+where `sync_args` is a tuple containing the types defined in the `sync_args` attribute.
+
+This sync function should be called explicitly before writing the type to a
+buffer to make sure all fields are consistent.
+
+| Mode | Available |
+| --------- | -------- |
+| `#[parsely]` | :x: |
+| `#[parsely_read]` | :x: |
+| `#[parsely_write]` | :white_check_mark: |
+
+#### Examples
+
+<details>
+  <summary>Click to expand</summary>
+
+Here, a header contains a length field that should describe the length of the
+entire packet.  The payload contains a variable-length array, so its length
+needs to be taken into account rest of the payload.  A field from the header is
+passed as context to the payload parsing.
+
+```rust
+use parsely::*;
+
+#[derive(Debug, ParselyWrite)]
+// sync_args denotes that this type's sync method takes additional arguments.
+// If no sync_args attribute is present, this implies that no additional
+// arguments are needed for syncing.  Note that a type might have nested fields
+// that require syncing, so sync should always be called.
+#[parsely_write(sync_args("payload_length_bytes: u16"))]
+struct Header {
+    version: u8,
+    packet_type: u8,
+    // sync_func attributes add lines to this type's sync method to update its own fields.  In this
+    // case the length field should equal the size of the header (4 bytes) + the sie of the
+    // payload.
+    #[parsely_write(sync_func = "|(plb,): (u16,)| -> ParselyResult<u16> { Ok(plb + 4) }")]
+    length_bytes: u16,
+}
+
+#[derive(Debug, ParselyWrite)]
+struct Packet {
+    // sync_with attributes describe which values should be passed to a field's sync method
+    #[parsely_write(sync_with = "self.data.len() as u16")]
+    header: Header,
+    data: Vec<u8>,
+}
+
+fn main() {
+    let mut packet = Packet {
+        header: Header {
+            version: 1,
+            packet_type: 2,
+            length_bytes: 0,
+        },
+        data: vec![1, 2, 3, 4],
+    };
+
+    // Packet's sync method requires no additional data, but it still needs to
+    // be called to make sure all of its fields are consistent
+    packet.sync(()).unwrap();
+
+    assert_eq!(packet.header.length_bytes, 8);
+}
+```
+
+</details>
+
 ### Context and required context
 
 Sometimes in order to read or write a struct or field, additional data is

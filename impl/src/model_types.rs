@@ -11,6 +11,7 @@ impl TypedFnArgList {
         self.0.iter().map(|t| t.ty()).collect()
     }
 
+    // TODO: this is context-specific, but now this type is more generic.  move it?
     pub(crate) fn assignments(&self) -> Vec<Local> {
         self.0
             .iter()

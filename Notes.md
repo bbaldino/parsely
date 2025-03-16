@@ -158,3 +158,96 @@ map:
 
 assertion:
   currently the assertion is done as an and_then and appended onto whatever the output is (but _before_ the 'option' wrapper is added)
+
+### 'Linked' fields
+
+Often times two fields are related, e.g. a length field and its corresponding
+vector.  Sometimes these are two "peer" fields in the same type, and sometimes
+they're spread across types (for example: the length field in an rtcp header is
+a function of the size of the rtcp payload).  I believe this link should impact
+both reading and writing:
+
+When reading, it might influence/impact what should be considered the "end" of
+a buffer when trying to read the rest of a payload (even though the actual
+buffer may go beyond it, i.e. in the case of compound rtcp or a different
+field).
+
+When writing, it needs to go the other direction: the size of some payload
+needs to be reflected "upward" into a length field.
+
+For example, an RTCP BYE packet:
+
+When reading:
+
+First we read the header.  The length value from the header should be used to
+create a bounded subcursor to be used when reading the payload, this way the
+payload reading doesn't risk reading beyond where it should.  In this case,
+this would take place "outside" of Parsely, since those two operations are
+independent.  For 'peer' fields this is also already covered by something like
+the 'count' attribute.  Will see if other cases emerge that require different
+handling.
+
+When writing:
+Before writing the header, the length field should be sync'd to reflect the
+proper length of the packet.  This makes me think we should prevent/discourage
+this field from being written to manually.  Should parsely define method to
+access fields as well?
+
+We _could_ do this using context for the write path:
+
+```rust
+#[parsely_write(required_context("payload_length_bytes: u32"))]
+struct RtcpHeader { 
+  ...
+  // Ignore the current value of length_field (_v) completely and don't even
+  // touch the field: just // use the map function as a hook to calculate the
+  // value that should be written
+  #[parsely_write(map("|_v: &u16 | payload_length_bytes / 4 + 1))]
+  length_field: u16
+}
+
+struct RtcpByePacket {
+  #[parsely_write(context("self.length_bytes()"))]
+  header: RtcpHeader,
+  ...
+}
+```
+
+This feels a little weird, since there's already an existing field that models
+this length, though.  And I'm not sure how we'd take that context into account
+when writing `length_bytes`, using `map` maybe?
+
+```rust
+#[parsely_write(sync_args("payload_length_bytes: u32"))]
+struct RtcpHeader { ... }
+
+impl RtcpHeader {
+  fn sync<(u32,)>(&mut self, (payload_length_bytes,): (u32,)) {
+    self.length_bytes = payload_length_bytes / 4 + 1;
+  } 
+}
+
+struct RtcpByePacket {
+  #[parsely_write(sync("self.length_bytes()"))]
+  header: RtcpHeader,
+  ...
+}
+```
+
+This is another option, where we denote that a field needs updating before
+writing, so the `ParselyWrite` impl would first call `sync` on that field with
+the given arguments before calling write on it.
+
+This feels better, I think.  It does mean manual implementations have to
+remember to call sync, whereas doing it via the write context guarantees it
+would need to be passed, though.
+
+--> My initial thought is that, although a separate method call means there's
+something to possibly miss, the 'sync' style feels better, so going to give
+that a shot.
+
+So I took a look at this and it ends up still being pretty sticky.  One thing I
+ran into is that `ParselyWrite::write` currently takes `&self`, but if `write` is
+going to automatically call `sync` then it'd need `&mut self` and I'm not sure
+I want to do that.  So maybe the call to `sync` will have to be manual and it
+will just be generated to do the right things?  Going with that for now.
