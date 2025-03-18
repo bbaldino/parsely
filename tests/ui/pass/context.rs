@@ -22,7 +22,7 @@ fn main() {
     let data = vec![1, 2, 3, 4];
     let mut cursor = BitCursor::from_vec(data);
 
-    let foo = Foo::read::<parsely::NetworkOrder, _>(&mut cursor, (2,)).expect("successful parse");
+    let foo = Foo::read::<parsely::NetworkOrder>(&mut cursor, (2,)).expect("successful parse");
 
     // Should have only read 2 values
     assert_eq!(foo.data.len(), 2);

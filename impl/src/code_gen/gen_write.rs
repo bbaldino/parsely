@@ -12,6 +12,7 @@ pub fn generate_parsely_write_impl(data: ParselyWriteData) -> TokenStream {
             struct_name,
             data.data.take_struct().unwrap(),
             data.required_context,
+            data.buffer_type,
             data.sync_args,
         )
     } else {
@@ -23,6 +24,7 @@ fn generate_parsely_write_impl_struct(
     struct_name: syn::Ident,
     fields: darling::ast::Fields<ParselyWriteFieldData>,
     required_context: Option<TypedFnArgList>,
+    buffer_type: syn::Ident,
     sync_args: Option<TypedFnArgList>,
 ) -> TokenStream {
     let (context_assignments, context_types) = if let Some(ref required_context) = required_context
@@ -52,29 +54,29 @@ fn generate_parsely_write_impl_struct(
 
             if let Some(ref writer) = f.writer {
                 field_write_output.extend(quote! {
-                    #writer::<T, B>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
+                    #writer::<T>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
                 });
             } else if let Some(ref map) = f.common.map {
                 let map_fn = map.parse::<TokenStream>().unwrap();
                 field_write_output.extend(quote! {
                     let mapped_value = (#map_fn)(&self.#field_name).with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))?;
-                    ParselyWrite::write::<T, B>(&mapped_value, buf, ()).with_context(|| format!("Writing mapped value for field '{}'", #field_name_string))?;
+                    ParselyWrite::write::<T>(&mapped_value, buf, ()).with_context(|| format!("Writing mapped value for field '{}'", #field_name_string))?;
                 });
             } else if f.ty.is_option() {
                 field_write_output.extend(quote! {
                     if let Some(ref v) = self.#field_name {
-                        #write_type::write::<T, B>(v, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
+                        #write_type::write::<T>(v, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
                     }
                 });
             } else if f.ty.is_collection() {
                 field_write_output.extend(quote! {
                     self.#field_name.iter().enumerate().map(|(idx, v)| {
-                        #write_type::write::<T, B>(v, buf, (#(#context_values,)*)).with_context(|| format!("Index {idx}"))
+                        #write_type::write::<T>(v, buf, (#(#context_values,)*)).with_context(|| format!("Index {idx}"))
                     }).collect::<ParselyResult<Vec<_>>>().with_context(|| format!("Writing field '{}'", #field_name_string))?;
                 });
             } else {
                 field_write_output.extend(quote! {
-                    #write_type::write::<T, B>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
+                    #write_type::write::<T>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
                 });
             }
 
@@ -122,8 +124,8 @@ fn generate_parsely_write_impl_struct(
         .collect::<Vec<TokenStream>>();
 
     quote! {
-        impl parsely::ParselyWrite<(#(#context_types,)*)> for #struct_name {
-            fn write<T: parsely::ByteOrder, B: parsely::BitWrite>(&self, buf: &mut B, ctx: (#(#context_types,)*)) -> parsely::ParselyResult<()> {
+        impl<B: #buffer_type> parsely::ParselyWrite<B, (#(#context_types,)*)> for #struct_name {
+            fn write<T: parsely::ByteOrder>(&self, buf: &mut B, ctx: (#(#context_types,)*)) -> parsely::ParselyResult<()> {
                 #(#context_assignments)*
 
                 #(#field_writes)*

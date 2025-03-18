@@ -74,7 +74,7 @@ pub struct ParselyReadFieldData {
 
     /// Instead of reading the value of this field from the buffer, assign it from the given
     /// [`syn::Ident`]
-    assign_from: Option<syn::Ident>,
+    assign_from: Option<syn::Expr>,
 
     /// 'when' is required when there's an optional field
     when: Option<syn::Expr>,
@@ -88,6 +88,7 @@ impl ParselyReadFieldData {
     /// Get the 'buffer type' of this field (the type that will be used when reading from or
     /// writing to the buffer): for wrapper types (like [`Option`] or [`Vec`]), this will be the
     /// inner type.
+    /// TODO: rename this so it's not confusing with the new buffer_type attribute
     pub(crate) fn buffer_type(&self) -> &syn::Type {
         if self.ty.is_option() || self.ty.is_collection() {
             self.ty
@@ -154,11 +155,21 @@ impl ParselyWriteFieldData {
     }
 }
 
+fn default_read_buffer_type_ident() -> syn::Ident {
+    syn::Ident::new("BitRead", proc_macro2::Span::call_site())
+}
+
+fn default_write_buffer_type_ident() -> syn::Ident {
+    syn::Ident::new("BitWrite", proc_macro2::Span::call_site())
+}
+
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(parsely, parsely_read), supports(struct_any, enum_any))]
 pub struct ParselyReadData {
     ident: syn::Ident,
     required_context: Option<TypedFnArgList>,
+    #[darling(default = default_read_buffer_type_ident)]
+    buffer_type: syn::Ident,
     data: ast::Data<(), ParselyReadFieldData>,
 }
 
@@ -168,5 +179,7 @@ pub struct ParselyWriteData {
     ident: syn::Ident,
     required_context: Option<TypedFnArgList>,
     sync_args: Option<TypedFnArgList>,
+    #[darling(default = default_write_buffer_type_ident)]
+    buffer_type: syn::Ident,
     data: ast::Data<(), ParselyWriteFieldData>,
 }

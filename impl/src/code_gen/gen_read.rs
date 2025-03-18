@@ -13,6 +13,7 @@ pub fn generate_parsely_read_impl(data: ParselyReadData) -> TokenStream {
         generate_parsely_read_impl_struct(
             struct_name,
             data.data.take_struct().unwrap(),
+            data.buffer_type,
             data.required_context,
         )
     } else {
@@ -22,7 +23,7 @@ pub fn generate_parsely_read_impl(data: ParselyReadData) -> TokenStream {
 
 fn generate_plain_read(ty: &syn::Type, context_values: &[syn::Expr]) -> TokenStream {
     quote! {
-        #ty::read::<T, B>(buf, (#(#context_values,)*))
+        #ty::read::<T>(buf, (#(#context_values,)*))
     }
 }
 
@@ -43,7 +44,7 @@ fn generate_map_read(field_name: &syn::Ident, map_fn: TokenStream) -> TokenStrea
     let field_name_string = field_name.to_string();
     quote! {
         {
-            let original_value = ParselyRead::read::<T, B>(buf, ()).with_context(|| format!("Reading raw value for field '{}'", #field_name_string))?;
+            let original_value = ParselyRead::read::<T>(buf, ()).with_context(|| format!("Reading raw value for field '{}'", #field_name_string))?;
             let mapped_value = (#map_fn)(original_value).with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))?;
 
             ParselyResult::<_>::Ok(mapped_value)
@@ -81,6 +82,7 @@ fn wrap_in_optional(when_expr: &syn::Expr, inner: TokenStream) -> TokenStream {
 fn generate_parsely_read_impl_struct(
     struct_name: syn::Ident,
     fields: darling::ast::Fields<ParselyReadFieldData>,
+    buffer_type: syn::Ident,
     required_context: Option<TypedFnArgList>,
 ) -> TokenStream {
     // Extract out the assignment expressions we'll do to assign the values of the context tuple
@@ -160,8 +162,8 @@ fn generate_parsely_read_impl_struct(
         .map(|f| f.ident.as_ref().unwrap())
         .collect::<Vec<&syn::Ident>>();
     quote! {
-        impl parsely::ParselyRead<(#(#context_types,)*)> for #struct_name {
-            fn read<T: parsely::ByteOrder, B: parsely::BitRead>(buf: &mut B, ctx: (#(#context_types,)*)) -> parsely::ParselyResult<Self> {
+        impl<B: #buffer_type> parsely::ParselyRead<B, (#(#context_types,)*)> for #struct_name {
+            fn read<T: parsely::ByteOrder>(buf: &mut B, ctx: (#(#context_types,)*)) -> parsely::ParselyResult<Self> {
                 #(#context_assignments)*
 
                 #(#field_reads)*

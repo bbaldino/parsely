@@ -11,7 +11,7 @@ fn main() {
     let data = vec![0b10101010];
     let mut cursor = BitCursor::from_vec(data);
 
-    let foo = Foo::read::<parsely::NetworkOrder, _>(&mut cursor, ()).expect("successful parse");
+    let foo = Foo::read::<NetworkOrder>(&mut cursor, ()).expect("successful parse");
     assert!(foo.one);
 
     let data: Vec<u8> = vec![0; 1];
@@ -19,7 +19,7 @@ fn main() {
 
     let foo = Foo { one: true };
 
-    foo.write::<parsely::NetworkOrder, _>(&mut cursor, ())
+    foo.write::<NetworkOrder>(&mut cursor, ())
         .expect("successful write");
     let data = cursor.into_inner();
     assert_eq!(data[0], true);
