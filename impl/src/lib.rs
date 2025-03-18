@@ -154,11 +154,17 @@ impl ParselyWriteFieldData {
     }
 }
 
+fn default_read_buffer_type_ident() -> syn::Ident {
+    syn::Ident::new("BitRead", proc_macro2::Span::call_site())
+}
+
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(parsely, parsely_read), supports(struct_any, enum_any))]
 pub struct ParselyReadData {
     ident: syn::Ident,
     required_context: Option<TypedFnArgList>,
+    #[darling(default = default_read_buffer_type_ident)]
+    buffer_type: syn::Ident,
     data: ast::Data<(), ParselyReadFieldData>,
 }
 

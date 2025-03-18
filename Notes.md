@@ -254,3 +254,42 @@ will just be generated to do the right things?  Going with that for now.
 
 TODO:
   can we get rid of the ambiguity of a plain "Ok" in sync_func? Could we make it such that plain (no Ok needed) would also work?
+
+### The buffer type
+
+Currently, ParselyRead takes any buffer that is BitRead and ParselyWrite takes
+any buffer that is BitWrite.  The issue here is that BitRead and BitWrite are
+very limited: they can't seek, they can't create sub-buffers, they can't tell
+how many bytes are remaining.  It would be nice to allow crates ways to add
+additional trait bounds on the buffer type so that they can use their own types
+that implement BitRead/BitRead but might also provide other functionality.
+
+This might look like:
+
+```rust
+#[derive(ParselyRead)]
+#[parsely(buffer_type = "BitRead + Seek + Sliceable + Sized")]
+struct MyStruct { ... }
+```
+
+where those values would be added as trait bounds in the ParselyRead impl, e.g.:
+
+```rust
+imp ParselyRead<()> for MyStruct {
+  fn read<T: ByteOrder, B: BitRead + Seek + Sliceable + Sized>(buf: &mut B) -> ParselyResult<Self> { ... }
+}
+or, obviously, you could create a trait to encompass those:
+
+```rust
+trait PacketBuffer: BitRead + Seek + Sliceable + Sized { ... }
+...
+
+#[derive(ParselyRead)]
+#[parsely(buffer_type = "PacketBuffer")]
+struct MyStruct { ... }
+```
+
+Some thoughts:
+
+- I think a crate would have to be very consistent with their use of this: mixing and matching could lead to problems
+- Is it possible to write an 'alias' for a macro attribute?
