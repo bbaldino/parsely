@@ -58,6 +58,9 @@ pub struct ParselyCommonFieldData {
 
     /// An optional mapping that will be applied to the read value
     map: Option<syn::LitStr>,
+
+    /// An expression which will be evaluated after reading or writing the field
+    after: Option<syn::Expr>,
 }
 
 #[derive(Debug, FromField)]

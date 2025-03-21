@@ -293,3 +293,35 @@ Some thoughts:
 
 - I think a crate would have to be very consistent with their use of this: mixing and matching could lead to problems
 - Is it possible to write an 'alias' for a macro attribute?
+
+### Post hooks
+
+Now that custom buffers can be set, we're in better shape to handle things like
+consuming/adding padding.  I was trying to think about how we might do that
+from a parsely perspective:
+
+At first I was thinking of a `padded` attribute which would denote that padding
+should be consumed after reading a field and added after writing a field, but
+the core parsely-code only knows about BitRead/BitWrite, so it can't do padding
+on its own.
+
+So that means we need something more generic.  My next thought was a "post
+hook" that would allow the caller to specify some operation that should happen
+after the read/write.  For example:
+
+```rust
+#[derive(ParselyRead, ParselyWrite)]
+#[parsely_read(buffer_type = "PacketBuffer")]
+#[parsely_write(buffer_type = "PacketBufferMut")]
+struct MyStruct {
+  length: u8,
+  #[parsely_read(count = "length", post = "buf.consume_padding()")]
+  #[parsely_write(post = "buf.add_padding()")]
+  data: Vec<u8>,
+}
+```
+
+Where "consume_padding" and "add_padding" would be features of some custom
+buffer type (PacketBuffer/PacketBufferMut here).
+
+Maybe it should be "after"?

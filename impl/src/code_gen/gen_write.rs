@@ -80,6 +80,12 @@ fn generate_parsely_write_impl_struct(
                 });
             }
 
+            if let Some(ref after) = f.common.after {
+                field_write_output.extend(quote! {
+                    #after;
+                })
+            }
+
             field_write_output
         })
         .collect::<Vec<TokenStream>>();

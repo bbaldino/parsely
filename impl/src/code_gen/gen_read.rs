@@ -152,9 +152,16 @@ fn generate_parsely_read_impl_struct(
                     quote! { #read_assignment }
                 };
 
-            quote! {
+            let mut output = TokenStream::new();
+            output.extend(quote! {
                 let #field_name = #read_assignment;
+            });
+            if let Some(ref after) = f.common.after {
+                output.extend(quote! {
+                    #after;
+                })
             }
+            output
         })
         .collect::<Vec<TokenStream>>();
     let field_names = fields
