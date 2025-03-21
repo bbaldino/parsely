@@ -112,10 +112,6 @@ fn generate_parsely_read_impl_struct(
                     read_assignment_output.extend(quote! {
                         ParselyResult::<_>::Ok(#assign_from)
                     })
-                } else if let Some(ref reader) = f.reader {
-                    read_assignment_output.extend(quote! {
-                        #reader::<T, B>(buf, (#(#context_values,)*))
-                    })
                 } else if let Some(ref map) = f.common.map {
                     let map_fn = map.parse::<TokenStream>().unwrap();
                     read_assignment_output.extend(generate_map_read(field_name, map_fn));
@@ -141,16 +137,15 @@ fn generate_parsely_read_impl_struct(
             };
 
             // TODO: what cases should we allow to bypass a 'when' clause for an Option?
-            let read_assignment =
-                if f.ty.is_option() && f.common.map.is_none() && f.reader.is_none() {
-                    let when_expr = f
-                        .when
-                        .as_ref()
-                        .expect("Optional field '{field_name}' must have a 'when' attribute");
-                    wrap_in_optional(when_expr, read_assignment)
-                } else {
-                    quote! { #read_assignment }
-                };
+            let read_assignment = if f.ty.is_option() && f.common.map.is_none() {
+                let when_expr = f
+                    .when
+                    .as_ref()
+                    .expect("Optional field '{field_name}' must have a 'when' attribute");
+                wrap_in_optional(when_expr, read_assignment)
+            } else {
+                quote! { #read_assignment }
+            };
 
             let mut output = TokenStream::new();
             output.extend(quote! {

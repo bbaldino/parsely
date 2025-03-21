@@ -325,3 +325,10 @@ Where "consume_padding" and "add_padding" would be features of some custom
 buffer type (PacketBuffer/PacketBufferMut here).
 
 Maybe it should be "after"?
+
+### Custom reader/writer functions
+
+I had these originally, but don't think they feel necessary as opposed to just
+doing a custom ParselyRead/ParselyWrite impl.  This approach will require a
+newtype in some cases where maybe you wouldn't otherwise have one, but at this
+point I don't think it feels worth it.

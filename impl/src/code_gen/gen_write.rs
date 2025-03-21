@@ -52,11 +52,7 @@ fn generate_parsely_write_impl_struct(
                 })
             }
 
-            if let Some(ref writer) = f.writer {
-                field_write_output.extend(quote! {
-                    #writer::<T>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
-                });
-            } else if let Some(ref map) = f.common.map {
+            if let Some(ref map) = f.common.map {
                 let map_fn = map.parse::<TokenStream>().unwrap();
                 field_write_output.extend(quote! {
                     let mapped_value = (#map_fn)(&self.#field_name).with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))?;

@@ -263,10 +263,6 @@ struct Foo {
 
 ### Assign from
 
-### Reader
-
-### Writer
-
 ### Dependent fields
 
 Often times packets will have fields whose values depend on other fields.  A

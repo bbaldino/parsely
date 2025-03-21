@@ -81,10 +81,6 @@ pub struct ParselyReadFieldData {
 
     /// 'when' is required when there's an optional field
     when: Option<syn::Expr>,
-
-    /// An optional custom reader function.  This function must have the same signature
-    /// as [`ParselyRead::read`].
-    reader: Option<syn::Ident>,
 }
 
 impl ParselyReadFieldData {
@@ -121,9 +117,6 @@ pub struct ParselyWriteFieldData {
 
     #[darling(flatten)]
     common: ParselyCommonFieldData,
-    /// An optional custom writer function.  This function must have the same signature
-    /// as [`ParselyWrite::write`].
-    writer: Option<syn::Ident>,
 
     /// An optional function or closure that will be called to synchronize this field based on some
     /// external data
