@@ -255,7 +255,22 @@ will just be generated to do the right things?  Going with that for now.
 TODO:
   can we get rid of the ambiguity of a plain "Ok" in sync_func? Could we make it such that plain (no Ok needed) would also work?
 
-### The buffer type
+Follow-up on this: I think that, when writing, the generated code should call
+'sync' on every field, that way if the user forgets to set the 'sync_with'
+attribute it'll cause a compile error (since the correct types won't be passed)
+which will help eliminate some bugs.  For this to work, though, _every_ type
+needs a sync method (including the built-ins) so we need a trait for this that
+can be implemented for them.  Should this function be part of the ParselyWrite
+trait? Or something separate? It'd be required for every ParselyWrite tpe, so
+maybe just doing it in ParselyWrite is better?  But then the sync_with args
+would need to be part of the ParselyWrite generics, which isn't great...
+
+...Do we ever use Ctx when writing?  Could the sync type be the equivalent of
+the context for writing?  I don't think context is needed for writing (I've
+seen no use cases of it so far, and it seems like any write context), but
+logically it seems like a use-case could exist for it...
+
+### The buffer type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               y
 
 Currently, ParselyRead takes any buffer that is BitRead and ParselyWrite takes
 any buffer that is BitWrite.  The issue here is that BitRead and BitWrite are

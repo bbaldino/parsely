@@ -1,6 +1,7 @@
 pub(crate) trait TypeExts {
     fn is_option(&self) -> bool;
     fn is_collection(&self) -> bool;
+    fn is_wrapped(&self) -> bool;
     fn inner_type(&self) -> Option<&syn::Type>;
 }
 
@@ -17,6 +18,10 @@ impl TypeExts for syn::Type {
                 && type_path.path.segments[0].ident == "Vec" && {
             true
         })
+    }
+
+    fn is_wrapped(&self) -> bool {
+        self.is_option() || self.is_collection()
     }
 
     fn inner_type(&self) -> Option<&syn::Type> {

@@ -63,12 +63,16 @@ impl FromMeta for TypedFnArgList {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct Context(Vec<syn::Expr>);
 
 impl Context {
     pub(crate) fn expressions(&self) -> &[syn::Expr] {
         &self.0
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 

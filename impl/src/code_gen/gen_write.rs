@@ -96,31 +96,27 @@ fn generate_parsely_write_impl_struct(
 
     let sync_field_calls = fields
         .iter()
-        // Filter for any field that has a 'sync_func' or a 'sync_with' attribute:
-        // 'sync_func' attributes mean this field needs to be updated based on some data that was
-        // passed in to the sync method
         // 'sync_with' attirbutes mean this field's 'sync' method needs to be called with some data
-        // TODO: I'm pretty sure we need to _always_ call the type's sync method, but built-in
-        // types don't currently have a sync method defined, so that'll fail in some cases.  I
-        // think sync will need to become a trait instead and we'll need to generate impls for all
-        // ParselyWrite types.  Or maybe the sync method should be part of the ParselyWrite trait?
-        .filter(|f| f.sync_func.is_some() || f.sync_with.is_some())
+        // Iterate over all fields and either:
+        // a) call the sync function provided in the sync_func attribute
+        // b) call the sync function on that type with any provided sync_with arguments
         .map(|f| {
             let field_name = f.ident.as_ref().expect("Field has a name");
             let field_name_string = field_name.to_string();
-            // Note: I think these two fields should be mutually exclusive, but will see how it
-            // goes
             if let Some(ref sync_func) = f.sync_func {
                 quote! {
                     self.#field_name = #sync_func.with_context(|| format!("Syncing field '{}'", #field_name_string))?;
                 }
-            } else if let Some(ref sync_with) = f.sync_with {
-                let sync_with = sync_with.expressions();
+            } else if f.sync_with.is_empty() && f.ty.is_wrapped() {
+                // We'll allow this combination to skip a call to sync: for types like Option<T> or
+                // Vec<T>, synchronization is only going to make sense if a custom function was
+                // provided.
+                quote! {}
+            } else {
+                let sync_with = f.sync_with.expressions();
                 quote! {
                     self.#field_name.sync((#(#sync_with,)*)).with_context(|| format!("Syncing field '{}'", #field_name_string))?;
                 }
-            } else {
-                unreachable!()
             }
         })
         .collect::<Vec<TokenStream>>();
@@ -136,12 +132,13 @@ fn generate_parsely_write_impl_struct(
             }
         }
 
-        impl #struct_name {
-            pub fn sync(&mut self, (#(#sync_args_variables,)*): (#(#sync_args_types,)*)) -> ParselyResult<()> {
+        impl StateSync<(#(#sync_args_types,)*)> for #struct_name {
+            fn sync(&mut self, (#(#sync_args_variables,)*): (#(#sync_args_types,)*)) -> ParselyResult<()> {
                 #(#sync_field_calls)*
 
                 Ok(())
             }
+
         }
     }
 }

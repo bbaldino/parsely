@@ -126,9 +126,11 @@ pub struct ParselyWriteFieldData {
     /// external data
     sync_func: Option<ExprOrFunc>,
 
-    /// An optional list of expressions that should be passed to this field's sync method before
-    /// writing it
-    sync_with: Option<Context>,
+    /// An list of expressions that should be passed as context to this field's sync method.  The
+    /// sync method provides an opportunity to synchronize "linked" fields, where one field's value
+    /// depends on the value of another.
+    #[darling(default)]
+    sync_with: Context,
 }
 
 impl ParselyWriteFieldData {
