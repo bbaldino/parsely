@@ -332,3 +332,22 @@ I had these originally, but don't think they feel necessary as opposed to just
 doing a custom ParselyRead/ParselyWrite impl.  This approach will require a
 newtype in some cases where maybe you wouldn't otherwise have one, but at this
 point I don't think it feels worth it.
+
+### Separate 'read/write' and 'read/write_with_context'
+
+I notice I'm getting pretty tired of having to pass an empty tuple in places
+where no context is needed.  Could we do 2 methods, where if no context is
+needed it could be called without a context arg?  I wouldn't want a type that
+_does_ need context to be able to call the one without it, though.  Maybe a
+special extension trait that's implemented for only ParselyRead<()>?  But I
+have the buffer type in the trait now too, and specifying that might not be
+doable?  The extension trait impl would have to be dynamically generated per
+type, maybe?
+
+### 'while' attribute for collections
+
+I needed this in rtp to be able to keep reading until a buffer is empty, but
+after doing the code I realized I had no good way to test it because the
+built-in buf doesn't provide anything that could be used with it, which makes
+me think putting it in parsely might not make sense.  This use case _could_
+have used the custom reader attribute, maybe?

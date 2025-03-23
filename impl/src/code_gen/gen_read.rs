@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::{
-    model_types::{FuncOrClosure, TypedFnArgList},
+    model_types::{CollectionLimit, FuncOrClosure, TypedFnArgList},
     syn_helpers::TypeExts,
     ParselyReadData, ParselyReadFieldData,
 };
@@ -28,15 +28,33 @@ fn generate_plain_read(ty: &syn::Type, context_values: &[syn::Expr]) -> TokenStr
 }
 
 fn generate_collection_read(
-    count_expr: &syn::Expr,
+    limit: CollectionLimit,
     ty: &syn::Type,
     context_values: &[syn::Expr],
 ) -> TokenStream {
     let plain_read = generate_plain_read(ty, context_values);
-    quote! {
-        (0..(#count_expr)).map(|idx| {
-            #plain_read.with_context( || format!("Index {idx}"))
-        }).collect::<ParselyResult<Vec<_>>>()
+    match limit {
+        CollectionLimit::Count(count) => {
+            quote! {
+                (0..(#count)).map(|idx| {
+                    #plain_read.with_context( || format!("Index {idx}"))
+                }).collect::<ParselyResult<Vec<_>>>()
+            }
+        }
+        CollectionLimit::While(pred) => {
+            // Since this is multiple statements we wrap it in a closure
+            quote! {
+                (|| {
+                    let mut values: Vec<ParselyResult<#ty>> = Vec::new();
+                    let mut idx = 0;
+                    while (#pred) {
+                        values.push(#plain_read.with_context( || format!("Read {idx}")));
+                        idx += 1
+                    }
+                    values.into_iter().collect::<ParselyResult<Vec<#ty>>>()
+                })()
+            }
+        }
     }
 }
 
@@ -116,12 +134,15 @@ fn generate_parsely_read_impl_struct(
                     let map_fn = map.parse::<TokenStream>().unwrap();
                     read_assignment_output.extend(generate_map_read(field_name, map_fn));
                 } else if f.ty.is_collection() {
-                    let count_expr = f
-                        .count
-                        .as_ref()
-                        .expect("Collection field '{field_name}' must have a 'count' attribute");
+                    let limit = if let Some(ref count) = f.count {
+                        CollectionLimit::Count(count.clone())
+                    } else if let Some(ref while_pred) = f.while_pred {
+                        CollectionLimit::While(while_pred.clone())
+                    } else {
+                        panic!("Collection field '{field_name}' must have either 'count' or 'while' attribute");
+                    };
                     read_assignment_output.extend(generate_collection_read(
-                        count_expr,
+                        limit,
                         read_type,
                         context_values,
                     ));

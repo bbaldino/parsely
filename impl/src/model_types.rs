@@ -3,6 +3,11 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::Parse;
 
+pub(crate) enum CollectionLimit {
+    Count(syn::Expr),
+    While(syn::Expr),
+}
+
 #[derive(Debug)]
 pub(crate) struct TypedFnArgList(pub(crate) Vec<TypedFnArg>);
 

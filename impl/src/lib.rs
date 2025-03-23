@@ -74,6 +74,10 @@ pub struct ParselyReadFieldData {
     common: ParselyCommonFieldData,
     /// 'count' is required when the field is a collection
     count: Option<syn::Expr>,
+    /// 'while' is an alternate option to 'count' to use with a collection field
+    // #[darling(rename = "while")]
+    // TODO: hopefully can get this to work as 'while'
+    while_pred: Option<syn::Expr>,
 
     /// Instead of reading the value of this field from the buffer, assign it from the given
     /// [`syn::Ident`]
