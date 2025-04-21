@@ -6,8 +6,7 @@ struct Foo {
 }
 
 fn main() {
-    let data = vec![0b10101010];
-    let mut cursor = BitCursor::from_vec(data);
+    let mut cursor = Bits::from_static_bytes(&[0b10101010]);
 
     let foo = Foo::read::<parsely::NetworkOrder>(&mut cursor, ()).expect("successful parse");
     assert!(foo.one);

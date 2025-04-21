@@ -7,7 +7,7 @@ description = "Macro-based struct serialization/deserialization"
 
 [dependencies]
 anyhow = "1"
-bit-cursor = "0.1.4"
+bits-io = { path = "../../bits-io/" }
 darling = "0.20.10"
 paste = "1"
 proc-macro2 = "1"

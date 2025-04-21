@@ -1,3 +1,4 @@
+use bitvec::prelude::*;
 use parsely::*;
 
 #[derive(ParselyRead, ParselyWrite)]
@@ -8,19 +9,16 @@ struct Foo {
 }
 
 fn main() {
-    let data = vec![0b10101010];
-    let mut cursor = BitCursor::from_vec(data);
+    let mut bits = Bits::from_static_bytes(&[0b10101010]);
 
-    let foo = Foo::read::<NetworkOrder>(&mut cursor, ()).expect("successful parse");
+    let foo = Foo::read::<NetworkOrder>(&mut bits, ()).expect("successful parse");
     assert!(foo.one);
 
-    let data: Vec<u8> = vec![0; 1];
-    let mut cursor = BitCursor::from_vec(data);
+    let mut bits_mut = BitsMut::new();
 
     let foo = Foo { one: true };
 
-    foo.write::<NetworkOrder>(&mut cursor, ())
+    foo.write::<NetworkOrder>(&mut bits_mut, ())
         .expect("successful write");
-    let data = cursor.into_inner();
-    assert_eq!(data[0], true);
+    assert_eq!(&bits_mut[..], bits![u8, Msb0; 1]);
 }

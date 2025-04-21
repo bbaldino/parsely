@@ -1,7 +1,8 @@
+use bitvec::prelude::*;
 use parsely::*;
 
 // A custom buffer type that will be used
-pub trait CustomBuffer: BitRead + BitWrite {
+pub trait CustomBuffer: BitBuf + BitBufMut {
     fn read_value(&self) -> u8 {
         42
     }
@@ -27,8 +28,14 @@ impl<B: CustomBuffer> ParselyRead<B, ()> for Inner {
 
 impl<B: CustomBuffer> ParselyWrite<B, ()> for Inner {
     fn write<T: ByteOrder>(&self, buf: &mut B, _ctx: ()) -> ParselyResult<()> {
-        buf.write_u8(buf.write_value())?;
+        buf.put_u8(buf.write_value())?;
 
+        Ok(())
+    }
+}
+
+impl StateSync<()> for Inner {
+    fn sync(&mut self, _sync_ctx: ()) -> ParselyResult<()> {
         Ok(())
     }
 }
@@ -39,20 +46,18 @@ struct MyStruct {
     inner: Inner,
 }
 
-impl<T> CustomBuffer for T where T: BitRead + BitWrite {}
+impl<T> CustomBuffer for T where T: BitBuf + BitBufMut {}
 
 pub fn main() {
-    let data: Vec<u8> = vec![0; 1];
-    let mut cursor = BitCursor::from_vec(data);
+    // The dummy 'CustomBuffer' type requires both Buf & BufMut for simplicity, so use BitsMut
+    // here even though we're just reading.
+    let mut bits = BitsMut::zeroed_bytes(1);
 
-    let ms = MyStruct::read::<NetworkOrder>(&mut cursor, ()).expect("successful read");
+    let ms = MyStruct::read::<NetworkOrder>(&mut bits, ()).expect("successful read");
     assert_eq!(ms.inner.value, 42);
 
-    let data: Vec<u8> = vec![0; 1];
-    let mut write_cursor = BitCursor::from_vec(data);
-    ms.write::<NetworkOrder>(&mut write_cursor, ())
+    let mut bits_mut = BitsMut::new();
+    ms.write::<NetworkOrder>(&mut bits_mut, ())
         .expect("successful write");
-    // println!("data: {:x}", write_cursor.into_inner());
-    let data = write_cursor.into_inner().into_vec();
-    assert_eq!(data[0], 24);
+    assert_eq!(&bits_mut[..], 24u8.view_bits::<Msb0>());
 }

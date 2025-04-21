@@ -5,13 +5,19 @@ pub mod parsely_read;
 pub mod parsely_write;
 mod syn_helpers;
 
-pub use bit_cursor::{
-    bit_cursor::BitCursor, bit_read::BitRead, bit_read_exts::BitReadExts, bit_write::BitWrite,
-    bit_write_exts::BitWriteExts, byte_order::BigEndian, byte_order::ByteOrder,
-    byte_order::LittleEndian, byte_order::NetworkOrder,
+pub use bits_io::{
+    buf::bit_buf::BitBuf,
+    buf::bit_buf_exts::BitBufExts,
+    buf::bit_buf_mut::BitBufMut,
+    buf::bit_buf_mut_exts::BitBufMutExts,
+    buf::bits::Bits,
+    buf::bits_mut::BitsMut,
+    buf::byte_order::{BigEndian, ByteOrder, LittleEndian, NetworkOrder},
+    io::{bit_cursor::BitCursor, bit_read::BitRead, bit_write::BitWrite},
 };
+
 pub mod nsw_types {
-    pub use bit_cursor::nsw_types::*;
+    pub use bits_io::nsw_types::*;
 }
 
 pub mod anyhow {
@@ -158,11 +164,11 @@ impl ParselyWriteFieldData {
 }
 
 fn default_read_buffer_type_ident() -> syn::Ident {
-    syn::Ident::new("BitRead", proc_macro2::Span::call_site())
+    syn::Ident::new("BitBuf", proc_macro2::Span::call_site())
 }
 
 fn default_write_buffer_type_ident() -> syn::Ident {
-    syn::Ident::new("BitWrite", proc_macro2::Span::call_site())
+    syn::Ident::new("BitBufMut", proc_macro2::Span::call_site())
 }
 
 #[derive(Debug, FromDeriveInput)]

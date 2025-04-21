@@ -13,6 +13,7 @@ parsely-impl = { version = "=0.1.0", path = "impl" }
 
 [dev-dependencies]
 trybuild = "1"
+bitvec = "1.0.1"
 macrotest = "1"
 
 [[test]]

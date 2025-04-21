@@ -1,5 +1,4 @@
-use bit_cursor::nsw_types::*;
-use bit_cursor::{bit_read::BitRead, bit_read_exts::BitReadExts, byte_order::ByteOrder};
+use bits_io::prelude::*;
 
 use crate::error::ParselyResult;
 
@@ -9,10 +8,10 @@ pub trait ParselyRead<B, Ctx>: Sized {
 
 macro_rules! impl_parsely_read_builtin {
     ($type:ty) => {
-        impl<B: BitRead> ParselyRead<B, ()> for $type {
+        impl<B: BitBuf> ParselyRead<B, ()> for $type {
             fn read<T: ByteOrder>(buf: &mut B, _: ()) -> ParselyResult<Self> {
                 ::paste::paste! {
-                    Ok(buf.[<read_ $type>]()?)
+                    Ok(buf.[<get_ $type>]()?)
                 }
             }
         }
@@ -21,19 +20,19 @@ macro_rules! impl_parsely_read_builtin {
 
 macro_rules! impl_parsely_read_builtin_bo {
     ($type:ty) => {
-        impl<B: BitRead> ParselyRead<B, ()> for $type {
+        impl<B: BitBuf> ParselyRead<B, ()> for $type {
             fn read<T: ByteOrder>(buf: &mut B, _: ()) -> ParselyResult<Self> {
                 ::paste::paste! {
-                    Ok(buf.[<read_ $type>]::<T>()?)
+                    Ok(buf.[<get_ $type>]::<T>()?)
                 }
             }
         }
     };
 }
 
-impl<B: BitRead> ParselyRead<B, ()> for bool {
+impl<B: BitBuf> ParselyRead<B, ()> for bool {
     fn read<T: ByteOrder>(buf: &mut B, _ctx: ()) -> ParselyResult<Self> {
-        Ok(buf.read_bool()?)
+        Ok(buf.get_bool()?)
     }
 }
 
