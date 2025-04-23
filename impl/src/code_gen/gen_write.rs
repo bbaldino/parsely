@@ -2,7 +2,9 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::{
-    model_types::TypedFnArgList, syn_helpers::TypeExts, ParselyWriteData, ParselyWriteFieldData,
+    model_types::{wrap_write_with_padding_handling, TypedFnArgList},
+    syn_helpers::TypeExts,
+    ParselyWriteData, ParselyWriteFieldData,
 };
 
 pub fn generate_parsely_write_impl(data: ParselyWriteData) -> TokenStream {
@@ -77,6 +79,12 @@ fn generate_parsely_write_impl_struct(
                     #write_type::write::<T>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
                 });
             }
+
+            field_write_output = if let Some(alignment) = f.common.alignment {
+                wrap_write_with_padding_handling(field_name, alignment, field_write_output)
+            } else {
+                field_write_output
+            };
 
             if let Some(ref after) = f.common.after {
                 field_write_output.extend(quote! {

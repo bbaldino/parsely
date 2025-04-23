@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::{
-    model_types::{CollectionLimit, FuncOrClosure, TypedFnArgList},
+    model_types::{wrap_read_with_padding_handling, CollectionLimit, FuncOrClosure, TypedFnArgList},
     syn_helpers::TypeExts,
     ParselyReadData, ParselyReadFieldData,
 };
@@ -114,6 +114,7 @@ fn generate_parsely_read_impl_struct(
         (Vec::new(), Vec::new())
     };
 
+    // TODO: clean these up to be more like the gen_write code
     let field_reads = fields
         .iter()
         .map(|f| {
@@ -172,18 +173,15 @@ fn generate_parsely_read_impl_struct(
 
             let mut output = TokenStream::new();
             output.extend(quote! {
-                let __bytes_remaining_start = buf.remaining_bytes();
                 let #field_name = #read_assignment;
             });
-            if let Some(ref alignment) = f.common.alignment {
-                output.extend(quote! {
-                    let __bytes_remaining_end = buf.remaining_bytes();
-                    let mut __amount_read = __bytes_remaining_start - __bytes_remaining_end;
-                    while __amount_read % #alignment != 0 {
-                        buf.get_u8().context("padding")?;
-                    }
-                })
-            }
+
+            output = if let Some(alignment) = f.common.alignment {
+                wrap_read_with_padding_handling(field_name, alignment, output)
+            } else {
+                output
+            };
+            
             if let Some(ref after) = f.common.after {
                 output.extend(quote! {
                     #after;
