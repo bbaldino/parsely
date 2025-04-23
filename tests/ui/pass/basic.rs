@@ -1,4 +1,4 @@
-use parsely::*;
+use parsely_rs::*;
 
 #[derive(ParselyRead)]
 struct Foo {
@@ -8,6 +8,6 @@ struct Foo {
 fn main() {
     let mut cursor = Bits::from_static_bytes(&[0b10101010]);
 
-    let foo = Foo::read::<parsely::NetworkOrder>(&mut cursor, ()).expect("successful parse");
+    let foo = Foo::read::<NetworkOrder>(&mut cursor, ()).expect("successful parse");
     assert!(foo.one);
 }

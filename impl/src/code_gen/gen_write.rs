@@ -2,6 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::{
+    get_crate_name,
     model_types::{wrap_write_with_padding_handling, TypedFnArgList},
     syn_helpers::TypeExts,
     ParselyWriteData, ParselyWriteFieldData,
@@ -31,6 +32,7 @@ fn generate_parsely_write_impl_struct(
     struct_alignment: Option<usize>,
     sync_args: Option<TypedFnArgList>,
 ) -> TokenStream {
+    let crate_name = get_crate_name();
     let (context_assignments, context_types) = if let Some(ref required_context) = required_context
     {
         (required_context.assignments(), required_context.types())
@@ -153,8 +155,8 @@ fn generate_parsely_write_impl_struct(
     };
 
     quote! {
-        impl<B: #buffer_type> parsely::ParselyWrite<B, (#(#context_types,)*)> for #struct_name {
-            fn write<T: parsely::ByteOrder>(&self, buf: &mut B, ctx: (#(#context_types,)*)) -> parsely::ParselyResult<()> {
+        impl<B: #buffer_type> ::#crate_name::ParselyWrite<B, (#(#context_types,)*)> for #struct_name {
+            fn write<T: ::#crate_name::ByteOrder>(&self, buf: &mut B, ctx: (#(#context_types,)*)) -> ::#crate_name::ParselyResult<()> {
                 #(#context_assignments)*
 
                 #body

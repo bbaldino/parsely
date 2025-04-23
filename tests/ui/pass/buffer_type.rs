@@ -1,5 +1,5 @@
 use bitvec::prelude::*;
-use parsely::*;
+use parsely_rs::*;
 
 // A custom buffer type that will be used
 pub trait CustomBuffer: BitBuf + BitBufMut {

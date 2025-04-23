@@ -1,4 +1,4 @@
-use parsely::*;
+use parsely_rs::*;
 
 #[derive(Debug, ParselyWrite)]
 // sync_args denotes that this type's sync method takes additional arguments.  By default a type's

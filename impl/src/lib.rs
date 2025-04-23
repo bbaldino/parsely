@@ -197,3 +197,15 @@ pub struct ParselyWriteData {
     alignment: Option<usize>,
     data: ast::Data<(), ParselyWriteFieldData>,
 }
+
+pub(crate) fn get_crate_name() -> syn::Ident {
+    let found_crate =
+        proc_macro_crate::crate_name("parsely-rs").expect("parsely-rs is present in Cargo.toml");
+
+    let crate_name = match found_crate {
+        proc_macro_crate::FoundCrate::Itself => "parsely-rs".to_string(),
+        proc_macro_crate::FoundCrate::Name(name) => name,
+    };
+
+    syn::Ident::new(&crate_name, proc_macro2::Span::call_site())
+}

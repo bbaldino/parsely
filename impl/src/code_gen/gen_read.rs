@@ -2,9 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::{
-    model_types::{wrap_read_with_padding_handling, CollectionLimit, FuncOrClosure, TypedFnArgList},
-    syn_helpers::TypeExts,
-    ParselyReadData, ParselyReadFieldData,
+    get_crate_name, model_types::{wrap_read_with_padding_handling, CollectionLimit, FuncOrClosure, TypedFnArgList}, syn_helpers::TypeExts, ParselyReadData, ParselyReadFieldData
 };
 
 pub fn generate_parsely_read_impl(data: ParselyReadData) -> TokenStream {
@@ -105,6 +103,7 @@ fn generate_parsely_read_impl_struct(
     struct_alignment: Option<usize>,
     required_context: Option<TypedFnArgList>,
 ) -> TokenStream {
+    let crate_name = get_crate_name();
     // Extract out the assignment expressions we'll do to assign the values of the context tuple
     // to the configured variable names, as well as the types of the context tuple.
     let (context_assignments, context_types) = if let Some(ref required_context) = required_context
@@ -216,8 +215,8 @@ fn generate_parsely_read_impl_struct(
         }
     };
     quote! {
-        impl<B: #buffer_type> parsely::ParselyRead<B, (#(#context_types,)*)> for #struct_name {
-            fn read<T: parsely::ByteOrder>(buf: &mut B, ctx: (#(#context_types,)*)) -> parsely::ParselyResult<Self> {
+        impl<B: #buffer_type> ::#crate_name::ParselyRead<B, (#(#context_types,)*)> for #struct_name {
+            fn read<T: ::#crate_name::ByteOrder>(buf: &mut B, ctx: (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
                 #(#context_assignments)*
 
                 #body

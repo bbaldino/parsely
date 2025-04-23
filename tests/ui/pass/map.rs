@@ -1,5 +1,5 @@
 use bitvec::prelude::*;
-use parsely::*;
+use parsely_rs::*;
 
 #[derive(ParselyRead, ParselyWrite)]
 struct Foo {

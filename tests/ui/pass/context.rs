@@ -1,4 +1,4 @@
-use parsely::*;
+use parsely_rs::*;
 
 #[derive(ParselyRead, ParselyWrite)]
 #[parsely_read(required_context("size_one: u32", "size_two: u32"))]
@@ -20,7 +20,7 @@ struct Foo {
 
 fn main() {
     let mut bits = Bits::from_static_bytes(&[1, 2, 3, 4]);
-    let foo = Foo::read::<parsely::NetworkOrder>(&mut bits, (2,)).expect("successful parse");
+    let foo = Foo::read::<NetworkOrder>(&mut bits, (2,)).expect("successful parse");
 
     // Should have only read 2 values
     assert_eq!(foo.data.len(), 2);

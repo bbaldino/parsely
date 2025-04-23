@@ -1,4 +1,4 @@
-use parsely::*;
+use parsely_rs::*;
 
 #[derive(ParselyRead, ParselyWrite)]
 #[parsely(alignment = 4)]
