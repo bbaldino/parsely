@@ -13,6 +13,7 @@ pub fn generate_parsely_write_impl(data: ParselyWriteData) -> TokenStream {
             data.data.take_struct().unwrap(),
             data.required_context,
             data.buffer_type,
+            data.alignment,
             data.sync_args,
         )
     } else {
@@ -25,6 +26,7 @@ fn generate_parsely_write_impl_struct(
     fields: darling::ast::Fields<ParselyWriteFieldData>,
     required_context: Option<TypedFnArgList>,
     buffer_type: syn::Ident,
+    struct_alignment: Option<usize>,
     sync_args: Option<TypedFnArgList>,
 ) -> TokenStream {
     let (context_assignments, context_types) = if let Some(ref required_context) = required_context
@@ -121,12 +123,33 @@ fn generate_parsely_write_impl_struct(
         })
         .collect::<Vec<TokenStream>>();
 
+    let body = if let Some(alignment) = struct_alignment {
+        quote! {
+
+            let __bytes_remaining_start = buf.remaining_mut_bytes();
+
+            #(#field_writes)*
+
+            let __bytes_remaining_end = buf.remaining_mut_bytes();
+            let mut __amount_written = __bytes_remaining_start - __bytes_remaining_end;
+            while __amount_written % #alignment != 0 {
+                let _ = buf.put_u8(0).context("padding")?;
+                __amount_written += 1;
+            }
+
+        }
+    } else {
+        quote! {
+            #(#field_writes)*
+        }
+    };
+
     quote! {
         impl<B: #buffer_type> parsely::ParselyWrite<B, (#(#context_types,)*)> for #struct_name {
             fn write<T: parsely::ByteOrder>(&self, buf: &mut B, ctx: (#(#context_types,)*)) -> parsely::ParselyResult<()> {
                 #(#context_assignments)*
 
-                #(#field_writes)*
+                #body
 
                 Ok(())
             }

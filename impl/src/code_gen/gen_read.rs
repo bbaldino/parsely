@@ -14,6 +14,7 @@ pub fn generate_parsely_read_impl(data: ParselyReadData) -> TokenStream {
             struct_name,
             data.data.take_struct().unwrap(),
             data.buffer_type,
+            data.alignment,
             data.required_context,
         )
     } else {
@@ -101,6 +102,7 @@ fn generate_parsely_read_impl_struct(
     struct_name: syn::Ident,
     fields: darling::ast::Fields<ParselyReadFieldData>,
     buffer_type: syn::Ident,
+    struct_alignment: Option<usize>,
     required_context: Option<TypedFnArgList>,
 ) -> TokenStream {
     // Extract out the assignment expressions we'll do to assign the values of the context tuple
@@ -170,8 +172,18 @@ fn generate_parsely_read_impl_struct(
 
             let mut output = TokenStream::new();
             output.extend(quote! {
+                let __bytes_remaining_start = buf.remaining_bytes();
                 let #field_name = #read_assignment;
             });
+            if let Some(ref alignment) = f.common.alignment {
+                output.extend(quote! {
+                    let __bytes_remaining_end = buf.remaining_bytes();
+                    let mut __amount_read = __bytes_remaining_start - __bytes_remaining_end;
+                    while __amount_read % #alignment != 0 {
+                        buf.get_u8().context("padding")?;
+                    }
+                })
+            }
             if let Some(ref after) = f.common.after {
                 output.extend(quote! {
                     #after;
@@ -180,16 +192,37 @@ fn generate_parsely_read_impl_struct(
             output
         })
         .collect::<Vec<TokenStream>>();
+
     let field_names = fields
         .iter()
         .map(|f| f.ident.as_ref().unwrap())
         .collect::<Vec<&syn::Ident>>();
+
+    let body = if let Some(alignment) = struct_alignment {
+        quote! {
+
+            let __bytes_remaining_start = buf.remaining_bytes();
+
+            #(#field_reads)*
+
+            let __bytes_remaining_end = buf.remaining_bytes();
+            let mut __amount_read = __bytes_remaining_start - __bytes_remaining_end;
+            while __amount_read % #alignment != 0 {
+                buf.get_u8().context("padding")?;
+                __amount_read += 1;
+            }
+        }
+    } else {
+        quote! {
+            #(#field_reads)*
+        }
+    };
     quote! {
         impl<B: #buffer_type> parsely::ParselyRead<B, (#(#context_types,)*)> for #struct_name {
             fn read<T: parsely::ByteOrder>(buf: &mut B, ctx: (#(#context_types,)*)) -> parsely::ParselyResult<Self> {
                 #(#context_assignments)*
 
-                #(#field_reads)*
+                #body
 
                 Ok(Self { #(#field_names,)* })
             }

@@ -67,6 +67,10 @@ pub struct ParselyCommonFieldData {
 
     /// An expression which will be evaluated after reading or writing the field
     after: Option<syn::Expr>,
+
+    /// An optional indicator that this field is or needs to be aligned to the given byte alignment
+    /// via padding.
+    alignment: Option<usize>,
 }
 
 #[derive(Debug, FromField)]
@@ -178,6 +182,7 @@ pub struct ParselyReadData {
     required_context: Option<TypedFnArgList>,
     #[darling(default = default_read_buffer_type_ident)]
     buffer_type: syn::Ident,
+    alignment: Option<usize>,
     data: ast::Data<(), ParselyReadFieldData>,
 }
 
@@ -189,5 +194,6 @@ pub struct ParselyWriteData {
     sync_args: Option<TypedFnArgList>,
     #[darling(default = default_write_buffer_type_ident)]
     buffer_type: syn::Ident,
+    alignment: Option<usize>,
     data: ast::Data<(), ParselyWriteFieldData>,
 }

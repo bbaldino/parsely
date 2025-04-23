@@ -341,6 +341,15 @@ buffer type (PacketBuffer/PacketBufferMut here).
 
 Maybe it should be "after"?
 
+--> After the transition to Buf/BufMut, I think we can pull off handling
+padding at the parsely/attribute level.  When reading, we can take the number
+of remaining bytes in the buffer at the start of the read and then after it's
+done and then compute how much padding we need to get aligned.  It assumes the
+buffer _starts_ aligned, but I think that's reasonable.
+
+It's similar on the write side: take the remaining amount at the start and at
+the end and add any padding necessary.
+
 ### Custom reader/writer functions
 
 I had these originally, but don't think they feel necessary as opposed to just
