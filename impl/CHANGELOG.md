@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/bbaldino/parsely/compare/parsely-impl-v0.1.0...parsely-impl-v0.1.1) - 2025-04-23
+
+### Other
+
+- release v0.1.0
+
 ## [0.1.0](https://github.com/bbaldino/parsely/releases/tag/parsely-impl-v0.1.0) - 2025-04-23
 
 ### Added
