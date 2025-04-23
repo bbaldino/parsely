@@ -24,14 +24,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "bit-cursor"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ffcfbae0957f1ab766f7c0c131bf6280b385cbfdd1bb7265121df41ce1015d9"
+name = "bits-io"
+version = "0.3.0"
 dependencies = [
  "bitvec",
+ "bytes",
+ "funty",
  "nsw-types",
- "paste",
 ]
 
 [[package]]
@@ -45,6 +44,12 @@ dependencies = [
  "tap",
  "wyz",
 ]
+
+[[package]]
+name = "bytes"
+version = "1.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 
 [[package]]
 name = "darling"
@@ -183,6 +188,7 @@ dependencies = [
 name = "parsely"
 version = "0.1.0"
 dependencies = [
+ "bitvec",
  "macrotest",
  "parsely-impl",
  "parsely-macro",
@@ -194,7 +200,7 @@ name = "parsely-impl"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bit-cursor",
+ "bits-io",
  "darling",
  "paste",
  "proc-macro-crate",

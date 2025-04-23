@@ -8,9 +8,8 @@ struct Foo {
 }
 
 fn main() {
-    let data = vec![2, 1, 2, 3];
-    let mut cursor = BitCursor::from_vec(data);
+    let mut bits = Bits::from_static_bytes(&[2, 1, 2, 3]);
 
-    let foo = Foo::read::<parsely::NetworkOrder>(&mut cursor, ()).expect("successful parse");
+    let foo = Foo::read::<parsely::NetworkOrder>(&mut bits, ()).expect("successful parse");
     assert_eq!(foo.data.len(), 2);
 }

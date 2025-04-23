@@ -1,6 +1,6 @@
 use darling::{ast, FromMeta};
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 use syn::parse::Parse;
 
 pub(crate) enum CollectionLimit {
@@ -222,5 +222,51 @@ impl ToTokens for FuncOrClosure {
 impl FromMeta for FuncOrClosure {
     fn from_string(value: &str) -> darling::Result<Self> {
         syn::parse_str::<FuncOrClosure>(value).map_err(darling::Error::custom)
+    }
+}
+
+pub(crate) fn wrap_read_with_padding_handling(
+    element_ident: &syn::Ident,
+    alignment: usize,
+    inner: TokenStream,
+) -> TokenStream {
+    let bytes_read_before_ident = format_ident!("__bytes_read_before_{element_ident}_read");
+    let bytes_read_after_ident = format_ident!("__bytes_read_after_{element_ident}_read");
+    let amount_read_ident = format_ident!("__bytes_read_for_{element_ident}");
+
+    quote! {
+        let #bytes_read_before_ident = buf.remaining_bytes();
+
+        #inner
+
+        let #bytes_read_after_ident = buf.remaining_bytes();
+        let mut #amount_read_ident = #bytes_read_before_ident - #bytes_read_after_ident;
+        while #amount_read_ident % #alignment != 0 {
+            let _ = buf.get_u8().context("padding")?;
+            #amount_read_ident += 1;
+        }
+    }
+}
+
+pub(crate) fn wrap_write_with_padding_handling(
+    element_ident: &syn::Ident,
+    alignment: usize,
+    inner: TokenStream,
+) -> TokenStream {
+    let bytes_written_before_ident = format_ident!("__bytes_written_before_{element_ident}_write");
+    let bytes_written_after_ident = format_ident!("__bytes_written_after_{element_ident}_write");
+    let amount_written_ident = format_ident!("__bytes_written_for_{element_ident}");
+
+    quote! {
+        let #bytes_written_before_ident = buf.remaining_bytes();
+
+        #inner
+
+        let #bytes_written_after_ident = buf.remaining_bytes();
+        let mut #amount_written_ident = #bytes_written_after_ident - #bytes_written_before_ident;
+        while #amount_written_ident % #alignment != 0 {
+            buf.put_u8(0).context("padding")?;
+            #amount_written_ident += 1;
+        }
     }
 }
