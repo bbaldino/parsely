@@ -265,7 +265,7 @@ pub(crate) fn wrap_write_with_padding_handling(
         let #bytes_written_after_ident = buf.remaining_bytes();
         let mut #amount_written_ident = #bytes_written_after_ident - #bytes_written_before_ident;
         while #amount_written_ident % #alignment != 0 {
-            buf.put_u8(0).context("padding")?:
+            buf.put_u8(0).context("padding")?;
             #amount_written_ident += 1;
         }
     }
