@@ -30,6 +30,7 @@ fn generate_parsely_write_impl_struct(
     struct_alignment: Option<usize>,
     sync_args: Option<TypedFnArgList>,
 ) -> TokenStream {
+    // TODO: call sync on all fields
     let crate_name = get_crate_name();
     let (context_assignments, context_types) = if let Some(ref required_context) = required_context
     {
@@ -159,7 +160,8 @@ fn generate_parsely_write_impl_struct(
             }
         }
 
-        impl StateSync<(#(#sync_args_types,)*)> for #struct_name {
+        impl StateSync for #struct_name {
+            type SyncCtx = (#(#sync_args_types,)*);
             fn sync(&mut self, (#(#sync_args_variables,)*): (#(#sync_args_types,)*)) -> ParselyResult<()> {
                 #(#sync_field_calls)*
 
