@@ -15,7 +15,6 @@ pub fn generate_parsely_write_impl(data: ParselyWriteData) -> TokenStream {
             struct_name,
             data.data.take_struct().unwrap(),
             data.required_context,
-            data.buffer_type,
             data.alignment,
             data.sync_args,
         )
@@ -28,7 +27,6 @@ fn generate_parsely_write_impl_struct(
     struct_name: syn::Ident,
     fields: darling::ast::Fields<ParselyWriteFieldData>,
     required_context: Option<TypedFnArgList>,
-    buffer_type: syn::Ident,
     struct_alignment: Option<usize>,
     sync_args: Option<TypedFnArgList>,
 ) -> TokenStream {
@@ -155,7 +153,7 @@ fn generate_parsely_write_impl_struct(
     };
 
     quote! {
-        impl<B: #buffer_type> ::#crate_name::ParselyWrite<B, (#(#context_types,)*)> for #struct_name {
+        impl<B: BitBufMut> ::#crate_name::ParselyWrite<B, (#(#context_types,)*)> for #struct_name {
             fn write<T: ::#crate_name::ByteOrder>(&self, buf: &mut B, ctx: (#(#context_types,)*)) -> ::#crate_name::ParselyResult<()> {
                 #(#context_assignments)*
 

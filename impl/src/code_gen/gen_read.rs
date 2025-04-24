@@ -11,7 +11,6 @@ pub fn generate_parsely_read_impl(data: ParselyReadData) -> TokenStream {
         generate_parsely_read_impl_struct(
             struct_name,
             data.data.take_struct().unwrap(),
-            data.buffer_type,
             data.alignment,
             data.required_context,
         )
@@ -99,7 +98,6 @@ fn wrap_in_optional(when_expr: &syn::Expr, inner: TokenStream) -> TokenStream {
 fn generate_parsely_read_impl_struct(
     struct_name: syn::Ident,
     fields: darling::ast::Fields<ParselyReadFieldData>,
-    buffer_type: syn::Ident,
     struct_alignment: Option<usize>,
     required_context: Option<TypedFnArgList>,
 ) -> TokenStream {
@@ -215,7 +213,7 @@ fn generate_parsely_read_impl_struct(
         }
     };
     quote! {
-        impl<B: #buffer_type> ::#crate_name::ParselyRead<B, (#(#context_types,)*)> for #struct_name {
+        impl<B: BitBuf> ::#crate_name::ParselyRead<B, (#(#context_types,)*)> for #struct_name {
             fn read<T: ::#crate_name::ByteOrder>(buf: &mut B, ctx: (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
                 #(#context_assignments)*
 
