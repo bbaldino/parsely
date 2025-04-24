@@ -69,3 +69,4 @@ for_all!({bool, u1, u2, u3, u4, u5, u6, u7, u8}, @impl_state_sync_builtin);
 for_all!({u9, u10, u11, u12, u13, u14, u15, u16}, @impl_state_sync_builtin);
 for_all!({u17, u18, u19, u20, u21, u22, u23, u24}, @impl_state_sync_builtin);
 for_all!({u25, u26, u27, u28, u29, u30, u31, u32}, @impl_state_sync_builtin);
+for_all!({String}, @impl_state_sync_builtin);
