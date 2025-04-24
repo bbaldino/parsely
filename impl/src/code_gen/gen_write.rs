@@ -23,6 +23,19 @@ pub fn generate_parsely_write_impl(data: ParselyWriteData) -> TokenStream {
     }
 }
 
+// Given the data associated with a field, generate the code for properly writing it to a buffer.
+//
+// The attributes set in the [`ParselyWriteFieldData`] all shape the logic necessary in order to
+// properly write this field.  Roughly, the processing is as follows:
+//
+// 1. If an 'assertion' attribute is present then generate the code to assert on the field's current
+//    value using the given function or closure.
+// fn generate_field_write(field_data: &ParselyWriteFieldData) -> TokenStream {
+//     let mut output = TokenStream::new();
+//
+//     output
+// }
+
 fn generate_parsely_write_impl_struct(
     struct_name: syn::Ident,
     fields: darling::ast::Fields<ParselyWriteFieldData>,
@@ -50,13 +63,7 @@ fn generate_parsely_write_impl_struct(
             let mut field_write_output = TokenStream::new();
 
             if let Some(ref assertion) = f.common.assertion {
-                let assertion_string = quote! { #assertion }.to_string();
-                field_write_output.extend(quote! {
-                    let assertion_func = #assertion;
-                    if !assertion_func(&self.#field_name) {
-                        bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name_string, self.#field_name, #assertion_string)
-                    }
-                })
+                assertion.to_write_assertion_tokens(&field_name_string, &mut field_write_output);
             }
 
             if let Some(ref map_fn) = f.common.map {

@@ -240,6 +240,48 @@ impl FromMeta for FuncOrClosure {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct Assertion(FuncOrClosure);
+
+impl Parse for Assertion {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        Ok(Self(FuncOrClosure::parse(input)?))
+    }
+}
+
+impl FromMeta for Assertion {
+    fn from_string(value: &str) -> darling::Result<Self> {
+        Ok(Self(FuncOrClosure::from_string(value)?))
+    }
+}
+
+impl Assertion {
+    pub(crate) fn to_read_assertion_tokens(&self, field_name: &str, tokens: &mut TokenStream) {
+        let assertion = &self.0;
+        tokens.extend(quote! {
+            .and_then(|read_value| {
+                let assertion_func = #assertion;
+                if !assertion_func(&read_value) {
+                    bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name, read_value, #assertion)
+                }
+                Ok(read_value)
+            })
+        });
+    }
+
+    pub(crate) fn to_write_assertion_tokens(&self, field_name: &str, tokens: &mut TokenStream) {
+        let assertion = &self.0;
+        let assertion_func_ident = format_ident!("__{}_assertion_func", field_name);
+        let field_name_ident = format_ident!("{field_name}");
+        tokens.extend(quote! {
+            let #assertion_func_ident = #assertion;
+            if !#assertion_func_ident(&self.#field_name_ident) {
+                bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name, self.#field_name_ident, #assertion)
+            }
+        })
+    }
+}
+
 pub(crate) fn wrap_read_with_padding_handling(
     element_ident: &syn::Ident,
     alignment: usize,

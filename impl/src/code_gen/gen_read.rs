@@ -73,23 +73,6 @@ fn generate_map_read(field_name: &syn::Ident, map_fn: &FuncOrClosure) -> TokenSt
     }
 }
 
-/// Generate an assertion 'block' that can be appended to a [`Result`] type by embedding it in an
-/// `and_then` block.  Note that we take a [`syn::Expr`] for the assertion, but it needs to
-/// effectively be a function (or a closure) which accepts the value type and returns a boolean.
-fn generate_assertion(field_name: &syn::Ident, assertion: &FuncOrClosure) -> TokenStream {
-    let assertion_string = quote! { #assertion }.to_string();
-    let field_name_string = field_name.to_string();
-    quote! {
-        .and_then(|actual_value| {
-            let assertion_func = #assertion;
-            if !assertion_func(&actual_value) {
-                bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name_string, actual_value, #assertion_string)
-            }
-            Ok(actual_value)
-        })
-    }
-}
-
 fn wrap_in_optional(when_expr: &syn::Expr, inner: TokenStream) -> TokenStream {
     quote! {
         if #when_expr {
@@ -115,7 +98,7 @@ fn wrap_in_optional(when_expr: &syn::Expr, inner: TokenStream) -> TokenStream {
 ///    elements should be read.
 /// 4. If none of the above are the case, do a 'plain' read where we just read the type directly
 ///    from the buffer.
-/// 5. If an 'assertion' attribute is present, then generate code to assert on the read value using
+/// 5. If an 'assertion' attribute is present then generate code to assert on the read value using
 ///    the given assertion function or closure.
 /// 6. After the code to perform the read has been generated, we check if the field is an option
 ///    type.  If so, a 'when' attribute is required.  This is an expression that determines when the
@@ -127,6 +110,7 @@ fn generate_field_read(field_data: &ParselyReadFieldData) -> TokenStream {
         .ident
         .as_ref()
         .expect("Only named fields supported");
+    let field_name_str = field_name.to_string();
     let read_type = field_data.buffer_type();
     // Context values that we need to pass to this field's ParselyRead::read method
     let context_values = field_data.context_values();
@@ -151,10 +135,9 @@ fn generate_field_read(field_data: &ParselyReadFieldData) -> TokenStream {
         output.extend(generate_plain_read(read_type, &context_values));
     }
 
-    // println!("tokenstream: {}", output);
-
     if let Some(ref assertion) = field_data.common.assertion {
-        output.extend(generate_assertion(field_name, assertion));
+        assertion.to_read_assertion_tokens(&field_name_str, &mut output);
+        // output.extend(generate_assertion(field_name, assertion));
     }
     let error_context = format!("Reading field '{field_name}'");
     output.extend(quote! { .with_context(|| #error_context)?});
