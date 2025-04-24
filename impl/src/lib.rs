@@ -63,7 +63,7 @@ pub struct ParselyCommonFieldData {
     context: Option<Context>,
 
     /// An optional mapping that will be applied to the read value
-    map: Option<syn::LitStr>,
+    map: Option<FuncOrClosure>,
 
     /// An optional indicator that this field is or needs to be aligned to the given byte alignment
     /// via padding.

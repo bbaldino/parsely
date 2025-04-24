@@ -1,8 +1,13 @@
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::{
-    get_crate_name, model_types::{wrap_read_with_padding_handling, CollectionLimit, FuncOrClosure, TypedFnArgList}, syn_helpers::TypeExts, ParselyReadData, ParselyReadFieldData
+    get_crate_name,
+    model_types::{
+        wrap_read_with_padding_handling, CollectionLimit, FuncOrClosure, TypedFnArgList,
+    },
+    syn_helpers::TypeExts,
+    ParselyReadData, ParselyReadFieldData,
 };
 
 pub fn generate_parsely_read_impl(data: ParselyReadData) -> TokenStream {
@@ -56,7 +61,7 @@ fn generate_collection_read(
     }
 }
 
-fn generate_map_read(field_name: &syn::Ident, map_fn: TokenStream) -> TokenStream {
+fn generate_map_read(field_name: &syn::Ident, map_fn: &FuncOrClosure) -> TokenStream {
     let field_name_string = field_name.to_string();
     quote! {
         {
@@ -95,6 +100,89 @@ fn wrap_in_optional(when_expr: &syn::Expr, inner: TokenStream) -> TokenStream {
     }
 }
 
+/// Given the data associated with a field, generate the code for properly reading it from a
+/// buffer.
+///
+/// The attributes set in the [`ParselyReadFieldData`] all shape the logic necessary in order to
+/// properly parse this field.  Roughly, the processing is as follows:
+///
+/// 1. Check if an 'assign_from' attribute is set.  If so, we don't read from the buffer at all and
+///    instead just assign the field to the result of the given expression.
+/// 2. Check if a 'map' attribute is set.  If so, we'll read a value as a different type and then
+///    pass it t othe map function to arrive at the final type and assign it to the field.
+/// 3. Check if the field is a collection.  If so, some kind of accompanying 'limit' attribute is
+///    required: either a 'count' attribute or a `while_pred` attribute that defines how many
+///    elements should be read.
+/// 4. If none of the above are the case, do a 'plain' read where we just read the type directly
+///    from the buffer.
+/// 5. If an 'assertion' attribute is present, then generate code to assert on the read value using
+///    the given assertion function or closure.
+/// 6. After the code to perform the read has been generated, we check if the field is an option
+///    type.  If so, a 'when' attribute is required.  This is an expression that determines when
+///    the read should actually be done.
+/// 7. Finally, if an 'alignment' attribute is present, code is added to detect and consume any
+///    padding after the read.
+fn generate_field_read(field_data: &ParselyReadFieldData) -> TokenStream {
+    let field_name = field_data
+        .ident
+        .as_ref()
+        .expect("Only named fields supported");
+    let read_type = field_data.buffer_type();
+    // Context values that we need to pass to this field's ParselyRead::read method
+    let context_values = field_data.context_values();
+    let mut output = TokenStream::new();
+
+    if let Some(ref assign_expr) = field_data.assign_from {
+        output.extend(quote! {
+            ParselyResult::<_>::Ok(#assign_expr)
+        })
+    } else if let Some(ref map_fn) = field_data.common.map {
+        output.extend(generate_map_read(field_name, map_fn));
+    } else if field_data.ty.is_collection() {
+        let limit = if let Some(ref count) = field_data.count {
+            CollectionLimit::Count(count.clone())
+        } else if let Some(ref while_pred) = field_data.while_pred {
+            CollectionLimit::While(while_pred.clone())
+        } else {
+            panic!("Collection field '{field_name}' must have either 'count' or 'while' attribute");
+        };
+        output.extend(generate_collection_read(limit, read_type, context_values));
+    } else {
+        output.extend(generate_plain_read(read_type, context_values));
+    }
+
+    // println!("tokenstream: {}", output);
+
+    if let Some(ref assertion) = field_data.common.assertion {
+        output.extend(generate_assertion(field_name, assertion));
+    }
+    let error_context = format!("Reading field '{field_name}'");
+    output.extend(quote! { .with_context(|| #error_context)?});
+
+    // TODO: what cases should we allow to bypass a 'when' clause for an Option?
+    output = if field_data.ty.is_option() && field_data.common.map.is_none() {
+        let when_expr = field_data
+            .when
+            .as_ref()
+            .expect("Optional field '{field_name}' must have a 'when' attribute");
+        wrap_in_optional(when_expr, output)
+    } else {
+        output
+    };
+
+    output = if let Some(alignment) = field_data.common.alignment {
+        wrap_read_with_padding_handling(field_name, alignment, output)
+    } else {
+        output
+    };
+
+    // println!("token stream before assignment: {output}");
+
+    quote! {
+        let #field_name = #output;
+    }
+}
+
 fn generate_parsely_read_impl_struct(
     struct_name: syn::Ident,
     fields: darling::ast::Fields<ParselyReadFieldData>,
@@ -111,76 +199,9 @@ fn generate_parsely_read_impl_struct(
         (Vec::new(), Vec::new())
     };
 
-    // TODO: clean these up to be more like the gen_write code
     let field_reads = fields
         .iter()
-        .map(|f| {
-            let field_name = f.ident.as_ref().expect("Field has a name");
-            let read_type = f.buffer_type();
-
-            // Context values that we need to pass to this field's ParselyRead::read method
-            let context_values = f.context_values();
-
-            let read_assignment = {
-                let mut read_assignment_output = TokenStream::new();
-                if let Some(ref assign_from) = f.assign_from {
-                    // Because of this 'naked' Ok, compiler can complain about not being able to
-                    // infer the proper error type when we apply '?' to this statement later, so
-                    // fully-qualify it as a ParselyResult::<_>::Ok
-                    read_assignment_output.extend(quote! {
-                        ParselyResult::<_>::Ok(#assign_from)
-                    })
-                } else if let Some(ref map) = f.common.map {
-                    let map_fn = map.parse::<TokenStream>().unwrap();
-                    read_assignment_output.extend(generate_map_read(field_name, map_fn));
-                } else if f.ty.is_collection() {
-                    let limit = if let Some(ref count) = f.count {
-                        CollectionLimit::Count(count.clone())
-                    } else if let Some(ref while_pred) = f.while_pred {
-                        CollectionLimit::While(while_pred.clone())
-                    } else {
-                        panic!("Collection field '{field_name}' must have either 'count' or 'while' attribute");
-                    };
-                    read_assignment_output.extend(generate_collection_read(
-                        limit,
-                        read_type,
-                        context_values,
-                    ));
-                } else {
-                    read_assignment_output.extend(generate_plain_read(read_type, context_values));
-                }
-                if let Some(ref assertion) = f.common.assertion {
-                    read_assignment_output.extend(generate_assertion(field_name, assertion));
-                }
-                let error_context = format!("Reading field '{field_name}'");
-                read_assignment_output.extend(quote! { .with_context(|| #error_context)?});
-                read_assignment_output
-            };
-
-            // TODO: what cases should we allow to bypass a 'when' clause for an Option?
-            let read_assignment = if f.ty.is_option() && f.common.map.is_none() {
-                let when_expr = f
-                    .when
-                    .as_ref()
-                    .expect("Optional field '{field_name}' must have a 'when' attribute");
-                wrap_in_optional(when_expr, read_assignment)
-            } else {
-                quote! { #read_assignment }
-            };
-
-            let mut output = TokenStream::new();
-            output.extend(quote! {
-                let #field_name = #read_assignment;
-            });
-
-            output = if let Some(alignment) = f.common.alignment {
-                wrap_read_with_padding_handling(field_name, alignment, output)
-            } else {
-                output
-            };
-            
-            output
-        })
+        .map(generate_field_read)
         .collect::<Vec<TokenStream>>();
 
     let field_names = fields
@@ -207,9 +228,16 @@ fn generate_parsely_read_impl_struct(
             #(#field_reads)*
         }
     };
+
+    let ctx_var = if context_types.is_empty() {
+        format_ident!("_ctx")
+    } else {
+        format_ident!("ctx")
+    };
+
     quote! {
         impl<B: BitBuf> ::#crate_name::ParselyRead<B, (#(#context_types,)*)> for #struct_name {
-            fn read<T: ::#crate_name::ByteOrder>(buf: &mut B, ctx: (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
+            fn read<T: ::#crate_name::ByteOrder>(buf: &mut B, #ctx_var: (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
                 #(#context_assignments)*
 
                 #body

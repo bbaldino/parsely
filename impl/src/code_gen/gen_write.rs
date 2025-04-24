@@ -37,13 +37,16 @@ fn generate_parsely_write_impl_struct(
     } else {
         (Vec::new(), Vec::new())
     };
+    // TODO: clean this up like the read code
     let field_writes = fields
         .iter()
         .map(|f| {
             let field_name = f.ident.as_ref().expect("Field has a name");
             let field_name_string = field_name.to_string();
             let write_type = f.buffer_type();
+            // Context values that we need to pass to this field's ParselyWrite::write method
             let context_values = f.context_values();
+
             let mut field_write_output = TokenStream::new();
 
             if let Some(ref assertion) = f.common.assertion {
@@ -56,8 +59,7 @@ fn generate_parsely_write_impl_struct(
                 })
             }
 
-            if let Some(ref map) = f.common.map {
-                let map_fn = map.parse::<TokenStream>().unwrap();
+            if let Some(ref map_fn) = f.common.map {
                 field_write_output.extend(quote! {
                     let mapped_value = (#map_fn)(&self.#field_name).with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))?;
                     ParselyWrite::write::<T>(&mapped_value, buf, ()).with_context(|| format!("Writing mapped value for field '{}'", #field_name_string))?;
