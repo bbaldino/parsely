@@ -179,11 +179,6 @@ fn generate_parsely_read_impl_struct(
                 output
             };
             
-            if let Some(ref after) = f.common.after {
-                output.extend(quote! {
-                    #after;
-                })
-            }
             output
         })
         .collect::<Vec<TokenStream>>();
