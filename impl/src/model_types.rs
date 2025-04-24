@@ -67,8 +67,23 @@ impl FromMeta for TypedFnArgList {
 pub(crate) struct Context(Vec<syn::Expr>);
 
 impl Context {
-    pub(crate) fn expressions(&self) -> &[syn::Expr] {
-        &self.0
+    /// Get the context arguments as a vector of expressions, with an erorr context including the
+    /// given `context` value.
+    pub(crate) fn expressions(&self, context: &str) -> Vec<syn::Expr> {
+        // We support Context expressions that return a ParselyResult or a raw value.  So now wrap
+        // all the expressions with code that will normalize all of the results into
+        // ParselyResults.
+       self.0 
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(idx, e)| {
+                syn::parse2(quote! {
+                    (#e).into_parsely_result().with_context(|| format!("{}: expression {}", #context, #idx))?
+                })
+                .unwrap()
+            })
+            .collect()
     }
 
     pub(crate) fn is_empty(&self) -> bool {

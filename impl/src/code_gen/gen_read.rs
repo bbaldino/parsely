@@ -118,8 +118,8 @@ fn wrap_in_optional(when_expr: &syn::Expr, inner: TokenStream) -> TokenStream {
 /// 5. If an 'assertion' attribute is present, then generate code to assert on the read value using
 ///    the given assertion function or closure.
 /// 6. After the code to perform the read has been generated, we check if the field is an option
-///    type.  If so, a 'when' attribute is required.  This is an expression that determines when
-///    the read should actually be done.
+///    type.  If so, a 'when' attribute is required.  This is an expression that determines when the
+///    read should actually be done.
 /// 7. Finally, if an 'alignment' attribute is present, code is added to detect and consume any
 ///    padding after the read.
 fn generate_field_read(field_data: &ParselyReadFieldData) -> TokenStream {
@@ -146,9 +146,9 @@ fn generate_field_read(field_data: &ParselyReadFieldData) -> TokenStream {
         } else {
             panic!("Collection field '{field_name}' must have either 'count' or 'while' attribute");
         };
-        output.extend(generate_collection_read(limit, read_type, context_values));
+        output.extend(generate_collection_read(limit, read_type, &context_values));
     } else {
-        output.extend(generate_plain_read(read_type, context_values));
+        output.extend(generate_plain_read(read_type, &context_values));
     }
 
     // println!("tokenstream: {}", output);

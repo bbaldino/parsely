@@ -1,6 +1,6 @@
 // TODO: these should be moved to a prelude file
 pub use parsely_impl::anyhow::{Context, anyhow, bail};
-pub use parsely_impl::error::ParselyResult;
+pub use parsely_impl::error::{IntoParselyResult, ParselyResult};
 pub use parsely_impl::impl_stateless_sync;
 pub use parsely_impl::nsw_types::*;
 pub use parsely_impl::{BigEndian, ByteOrder, LittleEndian, NetworkOrder};

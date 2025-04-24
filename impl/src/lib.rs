@@ -109,11 +109,16 @@ impl ParselyReadFieldData {
     }
 
     /// Get the context values that need to be passed to the read or write call for this field
-    pub(crate) fn context_values(&self) -> &[syn::Expr] {
+    pub(crate) fn context_values(&self) -> Vec<syn::Expr> {
+        let field_name = self
+            .ident
+            .as_ref()
+            .expect("Field must have a name")
+            .to_string();
         if let Some(ref field_context) = self.common.context {
-            field_context.expressions()
+            field_context.expressions(&format!("Read context for field '{field_name}'"))
         } else {
-            &[]
+            vec![]
         }
     }
 }
@@ -154,12 +159,28 @@ impl ParselyWriteFieldData {
     }
 
     /// Get the context values that need to be passed to the read or write call for this field
-    pub(crate) fn context_values(&self) -> &[syn::Expr] {
+    pub(crate) fn context_values(&self) -> Vec<syn::Expr> {
+        let field_name = self
+            .ident
+            .as_ref()
+            .expect("Field must have a name")
+            .to_string();
         if let Some(ref field_context) = self.common.context {
-            field_context.expressions()
+            field_context.expressions(&format!("Write context for field '{field_name}'"))
         } else {
-            &[]
+            vec![]
         }
+    }
+
+    /// Get the context values that need to be passed to the read or write call for this field
+    pub(crate) fn sync_with_expressions(&self) -> Vec<syn::Expr> {
+        let field_name = self
+            .ident
+            .as_ref()
+            .expect("Field must have a name")
+            .to_string();
+        self.sync_with
+            .expressions(&format!("Sync context for field '{field_name}'"))
     }
 }
 

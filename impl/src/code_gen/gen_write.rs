@@ -120,7 +120,7 @@ fn generate_parsely_write_impl_struct(
                 // provided.
                 quote! {}
             } else {
-                let sync_with = f.sync_with.expressions();
+                let sync_with = f.sync_with_expressions();
                 quote! {
                     self.#field_name.sync((#(#sync_with,)*)).with_context(|| format!("Syncing field '{}'", #field_name_string))?;
                 }
