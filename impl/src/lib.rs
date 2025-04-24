@@ -133,9 +133,9 @@ pub struct ParselyWriteFieldData {
     #[darling(flatten)]
     common: ParselyCommonFieldData,
 
-    /// An optional function or closure that will be called to synchronize this field based on some
-    /// external data
-    sync_func: Option<ExprOrFunc>,
+    /// An expression or function call that will be used to update this field in the generated
+    /// `StateSync` implementation for its parent type.
+    sync_expr: Option<ExprOrFunc>,
 
     /// An list of expressions that should be passed as context to this field's sync method.  The
     /// sync method provides an opportunity to synchronize "linked" fields, where one field's value

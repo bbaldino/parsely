@@ -30,7 +30,6 @@ fn generate_parsely_write_impl_struct(
     struct_alignment: Option<usize>,
     sync_args: Option<TypedFnArgList>,
 ) -> TokenStream {
-    // TODO: call sync on all fields
     let crate_name = get_crate_name();
     let (context_assignments, context_types) = if let Some(ref required_context) = required_context
     {
@@ -105,14 +104,14 @@ fn generate_parsely_write_impl_struct(
         .iter()
         // 'sync_with' attirbutes mean this field's 'sync' method needs to be called with some data
         // Iterate over all fields and either:
-        // a) call the sync function provided in the sync_func attribute
+        // a) execute the expression provided in the sync_expr attribute
         // b) call the sync function on that type with any provided sync_with arguments
         .map(|f| {
             let field_name = f.ident.as_ref().expect("Field has a name");
             let field_name_string = field_name.to_string();
-            if let Some(ref sync_func) = f.sync_func {
+            if let Some(ref sync_expr) = f.sync_expr {
                 quote! {
-                    self.#field_name = #sync_func.with_context(|| format!("Syncing field '{}'", #field_name_string))?;
+                    self.#field_name = (#sync_expr).into_parsely_result().with_context(|| format!("Syncing field '{}'", #field_name_string))?;
                 }
             } else if f.sync_with.is_empty() && f.ty.is_wrapped() {
                 // We'll allow this combination to skip a call to sync: for types like Option<T> or
