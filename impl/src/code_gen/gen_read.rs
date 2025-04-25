@@ -3,9 +3,7 @@ use quote::{format_ident, quote};
 
 use crate::{
     get_crate_name,
-    model_types::{
-        wrap_read_with_padding_handling, CollectionLimit, FuncOrClosure, TypedFnArgList,
-    },
+    model_types::{wrap_read_with_padding_handling, CollectionLimit, TypedFnArgList},
     syn_helpers::TypeExts,
     ParselyReadData, ParselyReadFieldData,
 };
@@ -61,18 +59,6 @@ fn generate_collection_read(
     }
 }
 
-fn generate_map_read(field_name: &syn::Ident, map_fn: &FuncOrClosure) -> TokenStream {
-    let field_name_string = field_name.to_string();
-    quote! {
-        {
-            let original_value = ParselyRead::read::<T>(buf, ()).with_context(|| format!("Reading raw value for field '{}'", #field_name_string))?;
-            let mapped_value = (#map_fn)(original_value).with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))?;
-
-            ParselyResult::<_>::Ok(mapped_value)
-        }
-    }
-}
-
 fn wrap_in_optional(when_expr: &syn::Expr, inner: TokenStream) -> TokenStream {
     quote! {
         if #when_expr {
@@ -120,8 +106,8 @@ fn generate_field_read(field_data: &ParselyReadFieldData) -> TokenStream {
         output.extend(quote! {
             ParselyResult::<_>::Ok(#assign_expr)
         })
-    } else if let Some(ref map_fn) = field_data.common.map {
-        output.extend(generate_map_read(field_name, map_fn));
+    } else if let Some(ref map_expr) = field_data.common.map {
+        map_expr.to_read_map_tokens(field_name, &mut output);
     } else if field_data.ty.is_collection() {
         let limit = if let Some(ref count) = field_data.count {
             CollectionLimit::Count(count.clone())

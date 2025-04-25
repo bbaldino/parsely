@@ -26,7 +26,7 @@ pub mod anyhow {
 
 use code_gen::{gen_read::generate_parsely_read_impl, gen_write::generate_parsely_write_impl};
 use darling::{ast, FromDeriveInput, FromField, FromMeta};
-use model_types::{Assertion, Context, ExprOrFunc, FuncOrClosure, TypedFnArgList};
+use model_types::{Assertion, Context, ExprOrFunc, MapExpr, TypedFnArgList};
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
 use syn_helpers::TypeExts;
@@ -63,7 +63,7 @@ pub struct ParselyCommonFieldData {
     context: Option<Context>,
 
     /// An optional mapping that will be applied to the read value
-    map: Option<FuncOrClosure>,
+    map: Option<MapExpr>,
 
     /// An optional indicator that this field is or needs to be aligned to the given byte alignment
     /// via padding.

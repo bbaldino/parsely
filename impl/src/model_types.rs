@@ -3,6 +3,8 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use syn::parse::Parse;
 
+use crate::get_crate_name;
+
 pub(crate) enum CollectionLimit {
     Count(syn::Expr),
     While(syn::Expr),
@@ -240,6 +242,51 @@ impl FromMeta for FuncOrClosure {
     }
 }
 
+/// A map expression that can be applied to a value after reading or before writing
+#[derive(Debug)]
+pub(crate) struct MapExpr(FuncOrClosure);
+
+impl FromMeta for MapExpr {
+    fn from_string(value: &str) -> darling::Result<Self> {
+        Ok(Self(FuncOrClosure::from_string(value)?))
+    }
+}
+
+impl MapExpr {
+    pub(crate) fn to_read_map_tokens(&self, field_name: &syn::Ident, tokens: &mut TokenStream) {
+        let crate_name = get_crate_name();
+        let field_name_string = field_name.to_string();
+        let map_expr = &self.0;
+        // TODO: is there a case where context might be required for reading the 'buffer_type'
+        // value?
+        tokens.extend(quote! {
+            {
+                let original_value = ::#crate_name::ParselyRead::read::<T>(buf, ())
+                    .with_context(|| format!("Reading raw value for field '{}'", #field_name_string))?;
+                (#map_expr)(original_value).into_parsely_result()
+                    .with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))
+            }
+        })
+    }
+
+    pub(crate) fn to_write_map_tokens(&self, field_name: &syn::Ident, tokens: &mut TokenStream) {
+        let crate_name = get_crate_name();
+        let field_name_string = field_name.to_string();
+        let map_expr = &self.0;
+        tokens.extend(quote! {
+            {
+                let mapped_value = (#map_expr)(&self.#field_name).into_parsely_result()
+                    .with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))?;
+                ::#crate_name::ParselyWrite::write::<T>(&mapped_value, buf, ())
+                    .with_context(|| format!("Writing mapped value for field '{}'", #field_name_string))?;
+            }
+        })
+    }
+}
+
+
+
+/// An assertion that can be used after reading a value or before writing one
 #[derive(Debug)]
 pub(crate) struct Assertion(FuncOrClosure);
 

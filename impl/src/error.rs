@@ -4,6 +4,8 @@ pub trait IntoParselyResult<T> {
     fn into_parsely_result(self) -> ParselyResult<T>;
 }
 
+// TODO: change this to be bound by T: ParselyWrite once ParselyWrite is changed to use associated
+// types
 impl<T> IntoParselyResult<T> for T {
     fn into_parsely_result(self) -> ParselyResult<T> {
         Ok(self)
