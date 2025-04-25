@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/bbaldino/parsely/compare/parsely-impl-v0.1.0...parsely-impl-v0.2.0) - 2025-04-25
+
+### Other
+
+- Better expression ergonomics ([#5](https://github.com/bbaldino/parsely/pull/5))
+- clean up field reader code gen
+- add StateSync impl for String
+- remove the 'after' attribute
+- remove the buffer_type attribute
+- release v0.1.0
+
 ## [0.1.0](https://github.com/bbaldino/parsely/releases/tag/parsely-impl-v0.1.0) - 2025-04-23
 
 ### Added
