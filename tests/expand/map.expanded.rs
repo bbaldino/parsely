@@ -4,13 +4,14 @@ struct Foo {
     #[parsely_write(map = "|v: &str| { v.parse::<u8>() }")]
     value: String,
 }
-impl<B: BitBuf> ::parsely_rs::ParselyRead<B, ()> for Foo {
-    fn read<T: ::parsely_rs::ByteOrder>(
+impl ::parsely_rs::ParselyRead for Foo {
+    type Ctx = ();
+    fn read<B: BitBuf, T: ::parsely_rs::ByteOrder>(
         buf: &mut B,
         _ctx: (),
     ) -> ::parsely_rs::ParselyResult<Self> {
         let value = {
-            let original_value = ::parsely_rs::ParselyRead::read::<T>(buf, ())
+            let original_value = ::parsely_rs::ParselyRead::read::<_, T>(buf, ())
                 .with_context(|| ::alloc::__export::must_use({
                     let res = ::alloc::fmt::format(
                         format_args!("Reading raw value for field \'{0}\'", "value"),

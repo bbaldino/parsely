@@ -10,7 +10,7 @@ struct Foo {
 fn main() {
     let mut bits = Bits::from_static_bytes(&[42]);
 
-    let foo = Foo::read::<NetworkOrder>(&mut bits, ()).expect("successful parse");
+    let foo = Foo::read::<_, NetworkOrder>(&mut bits, ()).expect("successful parse");
     assert_eq!(foo.value, "42");
 
     let mut bits_mut = BitsMut::new();

@@ -261,7 +261,7 @@ impl MapExpr {
         // value?
         tokens.extend(quote! {
             {
-                let original_value = ::#crate_name::ParselyRead::read::<T>(buf, ())
+                let original_value = ::#crate_name::ParselyRead::read::<_, T>(buf, ())
                     .with_context(|| format!("Reading raw value for field '{}'", #field_name_string))?;
                 (#map_expr)(original_value).into_parsely_result_read()
                     .with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))

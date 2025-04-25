@@ -3,12 +3,13 @@ struct Foo {
     #[parsely(assertion = "|v: &u8| *v % 2 == 0")]
     value: u8,
 }
-impl<B: BitBuf> ::parsely_rs::ParselyRead<B, ()> for Foo {
-    fn read<T: ::parsely_rs::ByteOrder>(
+impl ::parsely_rs::ParselyRead for Foo {
+    type Ctx = ();
+    fn read<B: BitBuf, T: ::parsely_rs::ByteOrder>(
         buf: &mut B,
         _ctx: (),
     ) -> ::parsely_rs::ParselyResult<Self> {
-        let value = u8::read::<T>(buf, ())
+        let value = u8::read::<_, T>(buf, ())
             .and_then(|read_value| {
                 let assertion_func = |v: &u8| *v % 2 == 0;
                 if !assertion_func(&read_value) {

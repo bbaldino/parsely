@@ -10,6 +10,6 @@ struct Foo {
 fn main() {
     let mut bits = Bits::from_static_bytes(&[2, 1, 2, 3]);
 
-    let foo = Foo::read::<NetworkOrder>(&mut bits, ()).expect("successful parse");
+    let foo = Foo::read::<_, NetworkOrder>(&mut bits, ()).expect("successful parse");
     assert_eq!(foo.data.len(), 2);
 }

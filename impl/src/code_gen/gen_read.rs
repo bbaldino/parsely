@@ -24,7 +24,7 @@ pub fn generate_parsely_read_impl(data: ParselyReadData) -> TokenStream {
 
 fn generate_plain_read(ty: &syn::Type, context_values: &[syn::Expr]) -> TokenStream {
     quote! {
-        #ty::read::<T>(buf, (#(#context_values,)*))
+        #ty::read::<_, T>(buf, (#(#context_values,)*))
     }
 }
 
@@ -123,7 +123,6 @@ fn generate_field_read(field_data: &ParselyReadFieldData) -> TokenStream {
 
     if let Some(ref assertion) = field_data.common.assertion {
         assertion.to_read_assertion_tokens(&field_name_str, &mut output);
-        // output.extend(generate_assertion(field_name, assertion));
     }
     let error_context = format!("Reading field '{field_name}'");
     output.extend(quote! { .with_context(|| #error_context)?});
@@ -144,8 +143,6 @@ fn generate_field_read(field_data: &ParselyReadFieldData) -> TokenStream {
     } else {
         output
     };
-
-    // println!("token stream before assignment: {output}");
 
     quote! {
         let #field_name = #output;
@@ -205,8 +202,9 @@ fn generate_parsely_read_impl_struct(
     };
 
     quote! {
-        impl<B: BitBuf> ::#crate_name::ParselyRead<B, (#(#context_types,)*)> for #struct_name {
-            fn read<T: ::#crate_name::ByteOrder>(buf: &mut B, #ctx_var: (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
+        impl ::#crate_name::ParselyRead for #struct_name {
+            type Ctx = (#(#context_types,)*);
+            fn read<B: BitBuf, T: ::#crate_name::ByteOrder>(buf: &mut B, #ctx_var: (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
                 #(#context_assignments)*
 
                 #body

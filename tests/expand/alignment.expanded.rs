@@ -3,13 +3,14 @@ use parsely_rs::*;
 struct Foo {
     one: u8,
 }
-impl<B: BitBuf> ::parsely_rs::ParselyRead<B, ()> for Foo {
-    fn read<T: ::parsely_rs::ByteOrder>(
+impl ::parsely_rs::ParselyRead for Foo {
+    type Ctx = ();
+    fn read<B: BitBuf, T: ::parsely_rs::ByteOrder>(
         buf: &mut B,
         _ctx: (),
     ) -> ::parsely_rs::ParselyResult<Self> {
         let __bytes_remaining_start = buf.remaining_bytes();
-        let one = u8::read::<T>(buf, ()).with_context(|| "Reading field 'one'")?;
+        let one = u8::read::<_, T>(buf, ()).with_context(|| "Reading field 'one'")?;
         let __bytes_remaining_end = buf.remaining_bytes();
         let mut __amount_read = __bytes_remaining_start - __bytes_remaining_end;
         while __amount_read % 4usize != 0 {
