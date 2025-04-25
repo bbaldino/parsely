@@ -1,6 +1,6 @@
 [package]
 name = "parsely-macro"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license = "MIT"
 description = "Macro-based struct serialization/deserialization"
@@ -11,7 +11,7 @@ description = "Macro-based struct serialization/deserialization"
 proc-macro = true
 
 [dependencies]
-parsely-impl = { version = "=0.2.0", path = "../impl" }
+parsely-impl = { version = "=0.3.0", path = "../impl" }
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "2.0.98", features = ["full", "extra-traits"] }
