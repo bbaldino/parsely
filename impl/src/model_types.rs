@@ -75,7 +75,7 @@ impl Context {
         // We support Context expressions that return a ParselyResult or a raw value.  So now wrap
         // all the expressions with code that will normalize all of the results into
         // ParselyResults.
-       self.0 
+        self.0
             .iter()
             .cloned()
             .enumerate()
@@ -283,8 +283,6 @@ impl MapExpr {
         })
     }
 }
-
-
 
 /// An assertion that can be used after reading a value or before writing one
 #[derive(Debug)]

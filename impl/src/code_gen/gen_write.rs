@@ -56,7 +56,7 @@ fn generate_parsely_write_impl_struct(
             // TODO: these write calls should be qualified.  Something like <#write_type as
             // ParselyWrite>::write
             if let Some(ref map_expr) = f.common.map {
-                map_expr.to_write_map_tokens(field_name, &mut field_write_output); 
+                map_expr.to_write_map_tokens(field_name, &mut field_write_output);
             } else if f.ty.is_option() {
                 field_write_output.extend(quote! {
                     if let Some(ref v) = self.#field_name {
