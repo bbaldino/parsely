@@ -2,7 +2,9 @@ use parsely_rs::*;
 
 #[derive(ParselyRead, ParselyWrite)]
 struct Foo {
+    // Closures can return a raw value...
     #[parsely_read(map = "|v: u8| { v.to_string() }")]
+    // ...or a Result<T, E> as long as E: Into<anyhow::Error>
     #[parsely_write(map = "|v: &str| { v.parse::<u8>() }")]
     value: String,
 }
