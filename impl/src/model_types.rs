@@ -263,7 +263,7 @@ impl MapExpr {
             {
                 let original_value = ::#crate_name::ParselyRead::read::<T>(buf, ())
                     .with_context(|| format!("Reading raw value for field '{}'", #field_name_string))?;
-                (#map_expr)(original_value).into_parsely_result()
+                (#map_expr)(original_value).into_parsely_result_read()
                     .with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))
             }
         })
@@ -277,7 +277,7 @@ impl MapExpr {
             {
                 let mapped_value = (#map_expr)(&self.#field_name).into_parsely_result()
                     .with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))?;
-                ::#crate_name::ParselyWrite::write::<T>(&mapped_value, buf, ())
+                ::#crate_name::ParselyWrite::write::<B, _, T>(&mapped_value, buf, ())
                     .with_context(|| format!("Writing mapped value for field '{}'", #field_name_string))?;
             }
         })
