@@ -1,3 +1,5 @@
+use crate::parsely_write::{ParselyWrite, ParselyWrite2};
+
 pub type ParselyResult<T> = anyhow::Result<T>;
 
 pub trait IntoParselyResult<T> {
@@ -6,7 +8,10 @@ pub trait IntoParselyResult<T> {
 
 // TODO: change this to be bound by T: ParselyWrite once ParselyWrite is changed to use associated
 // types
-impl<T> IntoParselyResult<T> for T {
+impl<T> IntoParselyResult<T> for T
+where
+    T: ParselyWrite,
+{
     fn into_parsely_result(self) -> ParselyResult<T> {
         Ok(self)
     }

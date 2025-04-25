@@ -7,7 +7,8 @@ pub use parsely_impl::{BigEndian, ByteOrder, LittleEndian, NetworkOrder};
 pub use parsely_impl::{BitBuf, BitBufExts, BitBufMut, BitBufMutExts, Bits, BitsMut};
 pub use parsely_impl::{BitCursor, BitRead, BitWrite};
 pub use parsely_impl::{
-    parsely_read::ParselyRead, parsely_write::ParselyWrite, parsely_write::StateSync,
+    parsely_read::ParselyRead, parsely_write::ParselyWritableExt, parsely_write::ParselyWrite,
+    parsely_write::ParselyWrite2, parsely_write::StateSync, parsely_write::WriteAdaptor,
 };
 pub use parsely_macro::{ParselyRead, ParselyWrite};
 
