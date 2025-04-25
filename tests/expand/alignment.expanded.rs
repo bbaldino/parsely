@@ -19,14 +19,15 @@ impl<B: BitBuf> ::parsely_rs::ParselyRead<B, ()> for Foo {
         Ok(Self { one })
     }
 }
-impl<B: BitBufMut> ::parsely_rs::ParselyWrite<B, ()> for Foo {
-    fn write<T: ::parsely_rs::ByteOrder>(
+impl ::parsely_rs::ParselyWrite for Foo {
+    type Ctx = ();
+    fn write<B: BitBufMut, T: ByteOrder>(
         &self,
         buf: &mut B,
-        ctx: (),
-    ) -> ::parsely_rs::ParselyResult<()> {
+        ctx: Self::Ctx,
+    ) -> ParselyResult<()> {
         let __bytes_remaining_start = buf.remaining_mut_bytes();
-        u8::write::<T>(&self.one, buf, ())
+        u8::write::<_, T>(&self.one, buf, ())
             .with_context(|| ::alloc::__export::must_use({
                 let res = ::alloc::fmt::format(
                     format_args!("Writing field \'{0}\'", "one"),

@@ -2,8 +2,6 @@ use parsely_rs::*;
 
 #[derive(ParselyRead, ParselyWrite)]
 struct Foo {
-    // #[parsely_read(map = "|v: u8| -> ParselyResult<String> { Ok(v.to_string()) }")]
-    // #[parsely_write(map = "|v: &str| -> ParselyResult<u8> { Ok(v.parse()?) }")]
     #[parsely_read(map = "|v: u8| { v.to_string() }")]
     #[parsely_write(map = "|v: &str| { v.parse::<u8>() }")]
     value: String,
@@ -21,7 +19,8 @@ fn main() {
         value: String::from("42"),
     };
 
-    foo.write::<NetworkOrder>(&mut bits_mut, ())
+    foo.write::<_, NetworkOrder>(&mut bits_mut, ())
         .expect("successful write");
+    let mut bits = bits_mut.freeze();
     assert_eq!(bits.get_u8().unwrap(), 42);
 }

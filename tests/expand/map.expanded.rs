@@ -18,7 +18,7 @@ impl<B: BitBuf> ::parsely_rs::ParselyRead<B, ()> for Foo {
                     res
                 }))?;
             (|v: u8| { v.to_string() })(original_value)
-                .into_parsely_result()
+                .into_parsely_result_read()
                 .with_context(|| ::alloc::__export::must_use({
                     let res = ::alloc::fmt::format(
                         format_args!("Mapping raw value for field \'{0}\'", "value"),
@@ -30,12 +30,13 @@ impl<B: BitBuf> ::parsely_rs::ParselyRead<B, ()> for Foo {
         Ok(Self { value })
     }
 }
-impl<B: BitBufMut> ::parsely_rs::ParselyWrite<B, ()> for Foo {
-    fn write<T: ::parsely_rs::ByteOrder>(
+impl ::parsely_rs::ParselyWrite for Foo {
+    type Ctx = ();
+    fn write<B: BitBufMut, T: ByteOrder>(
         &self,
         buf: &mut B,
-        ctx: (),
-    ) -> ::parsely_rs::ParselyResult<()> {
+        ctx: Self::Ctx,
+    ) -> ParselyResult<()> {
         {
             let mapped_value = (|v: &str| { v.parse::<u8>() })(&self.value)
                 .into_parsely_result()
@@ -45,7 +46,7 @@ impl<B: BitBufMut> ::parsely_rs::ParselyWrite<B, ()> for Foo {
                     );
                     res
                 }))?;
-            ::parsely_rs::ParselyWrite::write::<T>(&mapped_value, buf, ())
+            ::parsely_rs::ParselyWrite::write::<B, T>(&mapped_value, buf, ())
                 .with_context(|| ::alloc::__export::must_use({
                     let res = ::alloc::fmt::format(
                         format_args!("Writing mapped value for field \'{0}\'", "value"),

@@ -277,7 +277,7 @@ impl MapExpr {
             {
                 let mapped_value = (#map_expr)(&self.#field_name).into_parsely_result()
                     .with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))?;
-                ::#crate_name::ParselyWrite::write::<B, _, T>(&mapped_value, buf, ())
+                ::#crate_name::ParselyWrite::write::<B, T>(&mapped_value, buf, ())
                     .with_context(|| format!("Writing mapped value for field '{}'", #field_name_string))?;
             }
         })
@@ -305,11 +305,12 @@ impl FromMeta for Assertion {
 impl Assertion {
     pub(crate) fn to_read_assertion_tokens(&self, field_name: &str, tokens: &mut TokenStream) {
         let assertion = &self.0;
+        let assertion_string = quote! { #assertion }.to_string();
         tokens.extend(quote! {
             .and_then(|read_value| {
                 let assertion_func = #assertion;
                 if !assertion_func(&read_value) {
-                    bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name, read_value, #assertion)
+                    bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name, read_value, #assertion_string)
                 }
                 Ok(read_value)
             })
@@ -318,12 +319,13 @@ impl Assertion {
 
     pub(crate) fn to_write_assertion_tokens(&self, field_name: &str, tokens: &mut TokenStream) {
         let assertion = &self.0;
+        let assertion_string = quote! { #assertion }.to_string();
         let assertion_func_ident = format_ident!("__{}_assertion_func", field_name);
         let field_name_ident = format_ident!("{field_name}");
         tokens.extend(quote! {
             let #assertion_func_ident = #assertion;
             if !#assertion_func_ident(&self.#field_name_ident) {
-                bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name, self.#field_name_ident, #assertion)
+                bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name, self.#field_name_ident, #assertion_string)
             }
         })
     }
