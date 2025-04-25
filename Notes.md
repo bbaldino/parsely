@@ -81,6 +81,92 @@ takes a fair bit of special handling (including additional attributes like
 these cases, which seems like it may make sense.  Will probably play with some
 implementations of that and see how they feel.
 
+An interesting scenario came up with regards to the 'write' map path vs the 'read':
+
+Both sides want to take advantage of type inference to avoid having to make the
+caller explicitly state types.  Assuming a struct like this:
+
+```rust
+#[derive(ParselyRead, ParselyWrite)]
+struct Foo {
+    #[parsely_read(map = "|v: u8| { v.to_string() }")]
+    #[parsely_write(map = "|v: &str| { v.parse::<u8>() }")]
+    value: String,
+}
+```
+
+the generated read code can look like:
+
+```rust
+  let original_value = ::parsely_rs::ParselyRead::read::<T>(buf, ()).with_context(...)?;
+  (|v: u8| { v.to_string() })(original_value)
+      .with_context(...)?;
+
+```
+
+In this case the `read` map function isn't ambiguous about its type, but even
+if it was it would be inferred ok because eventually we're going to assign it
+to the field which _does_ have an explicit type, so it can be inferred from
+there.  The write side is trickier, but mainly because i didn't want to have to
+force the caller to explicitly return a result, i wanted to be able to handle a
+function that returned either a raw value or a result that could be converted
+into a ParselyResult.  The write code looks like this:
+
+```rust
+  let mapped_value = (|v: &str| { v.parse() })(&self.value)
+      .with_context(...)?;
+  ::parsely_rs::ParselyWrite::write::<T>(&mapped_value, buf, ())
+      .with_context(...)?;
+```
+
+We need to somehow wrap the result of the function in such a way that we end up with a `ParselyResult<T>` regardless of whether it returned some raw type T or some kind of Result<T, E>.
+
+The first solution that comes to mind to try and do that is this:
+
+```rust
+pub trait IntoParselyResult<T> {
+    fn into_parsely_result(self) -> ParselyResult<T>;
+}
+
+impl<T, E> IntoParselyResult<T> for Result<T, E>
+where
+    E: Into<anyhow::Error>,
+{
+    fn into_parsely_result(self) -> ParselyResult<T> {
+        self.map_err(Into::into)
+    }
+}
+
+impl<T> IntoParselyResult<T> for T {
+    fn into_parsely_result(self) -> ParselyResult<T> {
+        Ok(self)
+    }
+}
+```
+
+The problem is that for the case where the expression returns `Result<T, E>`
+there's ambiguity: it can't tell if what we want is `ParselyResult<T>` or
+`ParselyResult<Result<T, E>>` so the compiler complains about both
+implementations being possible.  I tried a bunch of different wrappers and
+macros to try and work around this but couldn't come up with anything.  Finally
+my only idea was to tweak the implementation for `T` slightly:
+
+```rust
+impl<T> IntoParselyResult<T> for T where T: ParselyWrite {
+    fn into_parsely_result(self) -> ParselyResult<T> {
+        Ok(self)
+    }
+}
+```
+
+Since we don't impl `ParselyWrite` for any `Result` type (and I don't think
+we'd have a need to) this disambiguates the two cases enough that there's no
+issue trying to infer which one touse.
+
+In order to do this, though, we'll need to change the definition of
+`ParselyWrite` to use associated types instead of generics, but I think that
+may actually make more sense anyway.
+
 is there an inherent "ordering" to all the attributes that we could always apply in a consistent way?
 
 context reads (assigning the context tuple variables into named variables defined by the 'required_context' attribute): I think these can always be first
@@ -253,7 +339,8 @@ I want to do that.  So maybe the call to `sync` will have to be manual and it
 will just be generated to do the right things?  Going with that for now.
 
 TODO:
-  can we get rid of the ambiguity of a plain "Ok" in sync_func? Could we make it such that plain (no Ok needed) would also work?
+  can we get rid of the ambiguity of a plain "Ok" in sync_func? Could we make
+it such that plain (no Ok needed) would also work?
 
 Follow-up on this: I think that, when writing, the generated code should call
 'sync' on every field, that way if the user forgets to set the 'sync_with'
@@ -270,7 +357,31 @@ the context for writing?  I don't think context is needed for writing (I've
 seen no use cases of it so far, and it seems like any write context), but
 logically it seems like a use-case could exist for it...
 
-### The buffer type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               y
+Follow-up:
+I've separated out the sync code into a trait (`StateSync`).  I've also moved
+the arguments to an associated type, which means we can make `StateSync` a
+supertrait of `ParselyWrite`.  The idea is that, when generating the write,
+`sync` will be called on every field so there's no chance of it being missed.
+
+One issue with this is built-in types: they need a default impl so that the
+compiler doesn't complain about calling `sync` on them.  But sometimes we need
+to sync fields that are built-in types.  For example, the length field of the
+RtcpHeader needs to be sync'd using the sync args.
+
+There are 3 aspect to synchronizing fields:
+
+* `sync_args`: This is attached to a type definition and it describes the names
+and types of the arguments that will be expected in that type's `StateSync`
+impl.
+* `sync_with`: This is attached to a field, and describes the values that will be
+used when calling that field's `sync` method.
+* `sync_func`: This is attached to a field and describes how _that field_
+should be updated in the `sync` method for its surrounding type using the args
+passed to it via `sync_args`
+
+The last one is confusing.  Maybe it's better named 'sync_expr'?
+
+### The buffer type
 
 Currently, ParselyRead takes any buffer that is BitRead and ParselyWrite takes
 any buffer that is BitWrite.  The issue here is that BitRead and BitWrite are
@@ -306,8 +417,8 @@ struct MyStruct { ... }
 
 Some thoughts:
 
-- I think a crate would have to be very consistent with their use of this: mixing and matching could lead to problems
-- Is it possible to write an 'alias' for a macro attribute?
+* I think a crate would have to be very consistent with their use of this: mixing and matching could lead to problems
+* Is it possible to write an 'alias' for a macro attribute?
 
 ### Post hooks
 

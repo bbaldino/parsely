@@ -3,6 +3,8 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use syn::parse::Parse;
 
+use crate::get_crate_name;
+
 pub(crate) enum CollectionLimit {
     Count(syn::Expr),
     While(syn::Expr),
@@ -67,8 +69,23 @@ impl FromMeta for TypedFnArgList {
 pub(crate) struct Context(Vec<syn::Expr>);
 
 impl Context {
-    pub(crate) fn expressions(&self) -> &[syn::Expr] {
-        &self.0
+    /// Get the context arguments as a vector of expressions, with an erorr context including the
+    /// given `context` value.
+    pub(crate) fn expressions(&self, context: &str) -> Vec<syn::Expr> {
+        // We support Context expressions that return a ParselyResult or a raw value.  So now wrap
+        // all the expressions with code that will normalize all of the results into
+        // ParselyResults.
+        self.0
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(idx, e)| {
+                syn::parse2(quote! {
+                    (#e).into_parsely_result().with_context(|| format!("{}: expression {}", #context, #idx))?
+                })
+                .unwrap()
+            })
+            .collect()
     }
 
     pub(crate) fn is_empty(&self) -> bool {
@@ -222,6 +239,93 @@ impl ToTokens for FuncOrClosure {
 impl FromMeta for FuncOrClosure {
     fn from_string(value: &str) -> darling::Result<Self> {
         syn::parse_str::<FuncOrClosure>(value).map_err(darling::Error::custom)
+    }
+}
+
+/// A map expression that can be applied to a value after reading or before writing
+#[derive(Debug)]
+pub(crate) struct MapExpr(FuncOrClosure);
+
+impl FromMeta for MapExpr {
+    fn from_string(value: &str) -> darling::Result<Self> {
+        Ok(Self(FuncOrClosure::from_string(value)?))
+    }
+}
+
+impl MapExpr {
+    pub(crate) fn to_read_map_tokens(&self, field_name: &syn::Ident, tokens: &mut TokenStream) {
+        let crate_name = get_crate_name();
+        let field_name_string = field_name.to_string();
+        let map_expr = &self.0;
+        // TODO: is there a case where context might be required for reading the 'buffer_type'
+        // value?
+        tokens.extend(quote! {
+            {
+                let original_value = ::#crate_name::ParselyRead::read::<T>(buf, ())
+                    .with_context(|| format!("Reading raw value for field '{}'", #field_name_string))?;
+                (#map_expr)(original_value).into_parsely_result_read()
+                    .with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))
+            }
+        })
+    }
+
+    pub(crate) fn to_write_map_tokens(&self, field_name: &syn::Ident, tokens: &mut TokenStream) {
+        let crate_name = get_crate_name();
+        let field_name_string = field_name.to_string();
+        let map_expr = &self.0;
+        tokens.extend(quote! {
+            {
+                let mapped_value = (#map_expr)(&self.#field_name).into_parsely_result()
+                    .with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))?;
+                ::#crate_name::ParselyWrite::write::<B, T>(&mapped_value, buf, ())
+                    .with_context(|| format!("Writing mapped value for field '{}'", #field_name_string))?;
+            }
+        })
+    }
+}
+
+/// An assertion that can be used after reading a value or before writing one
+#[derive(Debug)]
+pub(crate) struct Assertion(FuncOrClosure);
+
+impl Parse for Assertion {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        Ok(Self(FuncOrClosure::parse(input)?))
+    }
+}
+
+impl FromMeta for Assertion {
+    fn from_string(value: &str) -> darling::Result<Self> {
+        Ok(Self(FuncOrClosure::from_string(value)?))
+    }
+}
+
+impl Assertion {
+    pub(crate) fn to_read_assertion_tokens(&self, field_name: &str, tokens: &mut TokenStream) {
+        let assertion = &self.0;
+        let assertion_string = quote! { #assertion }.to_string();
+        tokens.extend(quote! {
+            .and_then(|read_value| {
+                let assertion_func = #assertion;
+                if !assertion_func(&read_value) {
+                    bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name, read_value, #assertion_string)
+                }
+                Ok(read_value)
+            })
+        });
+    }
+
+    pub(crate) fn to_write_assertion_tokens(&self, field_name: &str, tokens: &mut TokenStream) {
+        let assertion = &self.0;
+        let assertion_string = quote! { #assertion }.to_string();
+        let assertion_func_ident = format_ident!("__{}_assertion_func", field_name);
+        let field_name_ident = format_ident!("{field_name}");
+        tokens.extend(quote! {
+            let #assertion_func_ident = #assertion;
+            if !#assertion_func_ident(&self.#field_name_ident) {
+                bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name, self.#field_name_ident, #assertion_string)
+            }
+        })
     }
 }
 

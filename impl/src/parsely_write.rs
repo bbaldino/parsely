@@ -2,21 +2,41 @@ use bits_io::prelude::*;
 
 use crate::error::ParselyResult;
 
-pub trait StateSync<SyncCtx>: Sized {
-    // TODO: I think we should probably do a default impl of sync here that just returns Ok(())
-    fn sync(&mut self, sync_ctx: SyncCtx) -> ParselyResult<()>;
+/// A trait for syncing a field with any required context.  In order to prevent accidental misses
+/// of this trait, it's required for all `ParselyWrite` implementors.  When generating the
+/// `ParselyWrite` implementation, `sync` will be called on every field.
+pub trait StateSync: Sized {
+    type SyncCtx;
+
+    fn sync(&mut self, _sync_ctx: Self::SyncCtx) -> ParselyResult<()> {
+        Ok(())
+    }
 }
 
-// TODO: should this be changed to require StateSync? I think so? Pretty sure we assume it exists,
-// so it'll move errors sooner
-pub trait ParselyWrite<B, Ctx>: Sized {
-    fn write<T: ByteOrder>(&self, buf: &mut B, ctx: Ctx) -> ParselyResult<()>;
+#[macro_export]
+macro_rules! impl_stateless_sync {
+    ($ty:ty) => {
+        impl StateSync for $ty {
+            type SyncCtx = ();
+        }
+    };
+}
+
+pub trait ParselyWrite: StateSync + Sized {
+    type Ctx;
+    fn write<B: BitBufMut, T: ByteOrder>(&self, buf: &mut B, ctx: Self::Ctx) -> ParselyResult<()>;
 }
 
 macro_rules! impl_parsely_write_builtin {
     ($type:ty) => {
-        impl<B: BitBufMut> ParselyWrite<B, ()> for $type {
-            fn write<T: ByteOrder>(&self, buf: &mut B, _: ()) -> ParselyResult<()> {
+        impl ParselyWrite for $type {
+            type Ctx = ();
+
+            fn write<B: BitBufMut, T: ByteOrder>(
+                &self,
+                buf: &mut B,
+                _: Self::Ctx,
+            ) -> ParselyResult<()> {
                 ::paste::paste! {
                     Ok(buf.[<put_ $type>](*self)?)
                 }
@@ -27,8 +47,13 @@ macro_rules! impl_parsely_write_builtin {
 
 macro_rules! impl_parsely_write_builtin_bo {
     ($type:ty) => {
-        impl<B: BitBufMut> ParselyWrite<B, ()> for $type {
-            fn write<T: ByteOrder>(&self, buf: &mut B, _: ()) -> ParselyResult<()> {
+        impl ParselyWrite for $type {
+            type Ctx = ();
+            fn write<B: BitBufMut, T: ByteOrder>(
+                &self,
+                buf: &mut B,
+                _: Self::Ctx,
+            ) -> ParselyResult<()> {
                 ::paste::paste! {
                     Ok(buf.[<put_ $type>]::<T>(*self)?)
                 }
@@ -52,7 +77,8 @@ macro_rules! for_all {
 
 macro_rules! impl_state_sync_builtin {
     ($type:ty) => {
-        impl StateSync<()> for $type {
+        impl StateSync for $type {
+            type SyncCtx = ();
             fn sync(&mut self, _sync_ctx: ()) -> ParselyResult<()> {
                 Ok(())
             }

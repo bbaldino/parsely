@@ -50,35 +50,28 @@ fn generate_parsely_write_impl_struct(
             let mut field_write_output = TokenStream::new();
 
             if let Some(ref assertion) = f.common.assertion {
-                let assertion_string = quote! { #assertion }.to_string();
-                field_write_output.extend(quote! {
-                    let assertion_func = #assertion;
-                    if !assertion_func(&self.#field_name) {
-                        bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name_string, self.#field_name, #assertion_string)
-                    }
-                })
+                assertion.to_write_assertion_tokens(&field_name_string, &mut field_write_output);
             }
 
-            if let Some(ref map_fn) = f.common.map {
-                field_write_output.extend(quote! {
-                    let mapped_value = (#map_fn)(&self.#field_name).with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))?;
-                    ParselyWrite::write::<T>(&mapped_value, buf, ()).with_context(|| format!("Writing mapped value for field '{}'", #field_name_string))?;
-                });
+            // TODO: these write calls should be qualified.  Something like <#write_type as
+            // ParselyWrite>::write
+            if let Some(ref map_expr) = f.common.map {
+                map_expr.to_write_map_tokens(field_name, &mut field_write_output);
             } else if f.ty.is_option() {
                 field_write_output.extend(quote! {
                     if let Some(ref v) = self.#field_name {
-                        #write_type::write::<T>(v, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
+                        #write_type::write::<_, T>(v, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
                     }
                 });
             } else if f.ty.is_collection() {
                 field_write_output.extend(quote! {
                     self.#field_name.iter().enumerate().map(|(idx, v)| {
-                        #write_type::write::<T>(v, buf, (#(#context_values,)*)).with_context(|| format!("Index {idx}"))
+                        #write_type::write::<_, T>(v, buf, (#(#context_values,)*)).with_context(|| format!("Index {idx}"))
                     }).collect::<ParselyResult<Vec<_>>>().with_context(|| format!("Writing field '{}'", #field_name_string))?;
                 });
             } else {
                 field_write_output.extend(quote! {
-                    #write_type::write::<T>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
+                    #write_type::write::<_, T>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
                 });
             }
 
@@ -104,14 +97,14 @@ fn generate_parsely_write_impl_struct(
         .iter()
         // 'sync_with' attirbutes mean this field's 'sync' method needs to be called with some data
         // Iterate over all fields and either:
-        // a) call the sync function provided in the sync_func attribute
+        // a) execute the expression provided in the sync_expr attribute
         // b) call the sync function on that type with any provided sync_with arguments
         .map(|f| {
             let field_name = f.ident.as_ref().expect("Field has a name");
             let field_name_string = field_name.to_string();
-            if let Some(ref sync_func) = f.sync_func {
+            if let Some(ref sync_expr) = f.sync_expr {
                 quote! {
-                    self.#field_name = #sync_func.with_context(|| format!("Syncing field '{}'", #field_name_string))?;
+                    self.#field_name = (#sync_expr).into_parsely_result().with_context(|| format!("Syncing field '{}'", #field_name_string))?;
                 }
             } else if f.sync_with.is_empty() && f.ty.is_wrapped() {
                 // We'll allow this combination to skip a call to sync: for types like Option<T> or
@@ -119,7 +112,7 @@ fn generate_parsely_write_impl_struct(
                 // provided.
                 quote! {}
             } else {
-                let sync_with = f.sync_with.expressions();
+                let sync_with = f.sync_with_expressions();
                 quote! {
                     self.#field_name.sync((#(#sync_with,)*)).with_context(|| format!("Syncing field '{}'", #field_name_string))?;
                 }
@@ -149,8 +142,13 @@ fn generate_parsely_write_impl_struct(
     };
 
     quote! {
-        impl<B: BitBufMut> ::#crate_name::ParselyWrite<B, (#(#context_types,)*)> for #struct_name {
-            fn write<T: ::#crate_name::ByteOrder>(&self, buf: &mut B, ctx: (#(#context_types,)*)) -> ::#crate_name::ParselyResult<()> {
+        impl ::#crate_name::ParselyWrite for #struct_name {
+            type Ctx = (#(#context_types,)*);
+            fn write<B: BitBufMut, T: ByteOrder>(
+                &self,
+                buf: &mut B,
+                ctx: Self::Ctx,
+            ) -> ParselyResult<()> {
                 #(#context_assignments)*
 
                 #body
@@ -159,7 +157,8 @@ fn generate_parsely_write_impl_struct(
             }
         }
 
-        impl StateSync<(#(#sync_args_types,)*)> for #struct_name {
+        impl StateSync for #struct_name {
+            type SyncCtx = (#(#sync_args_types,)*);
             fn sync(&mut self, (#(#sync_args_variables,)*): (#(#sync_args_types,)*)) -> ParselyResult<()> {
                 #(#sync_field_calls)*
 

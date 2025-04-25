@@ -26,7 +26,7 @@ pub mod anyhow {
 
 use code_gen::{gen_read::generate_parsely_read_impl, gen_write::generate_parsely_write_impl};
 use darling::{ast, FromDeriveInput, FromField, FromMeta};
-use model_types::{Context, ExprOrFunc, FuncOrClosure, TypedFnArgList};
+use model_types::{Assertion, Context, ExprOrFunc, MapExpr, TypedFnArgList};
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
 use syn_helpers::TypeExts;
@@ -57,13 +57,13 @@ pub struct ParselyCommonFieldData {
     // See https://github.com/TedDriggs/darling/issues/330
 
     // generics: Option<syn::Ident>,
-    assertion: Option<FuncOrClosure>,
+    assertion: Option<Assertion>,
 
     /// Values that need to be passed as context to this fields read or write method
     context: Option<Context>,
 
     /// An optional mapping that will be applied to the read value
-    map: Option<FuncOrClosure>,
+    map: Option<MapExpr>,
 
     /// An optional indicator that this field is or needs to be aligned to the given byte alignment
     /// via padding.
@@ -109,11 +109,16 @@ impl ParselyReadFieldData {
     }
 
     /// Get the context values that need to be passed to the read or write call for this field
-    pub(crate) fn context_values(&self) -> &[syn::Expr] {
+    pub(crate) fn context_values(&self) -> Vec<syn::Expr> {
+        let field_name = self
+            .ident
+            .as_ref()
+            .expect("Field must have a name")
+            .to_string();
         if let Some(ref field_context) = self.common.context {
-            field_context.expressions()
+            field_context.expressions(&format!("Read context for field '{field_name}'"))
         } else {
-            &[]
+            vec![]
         }
     }
 }
@@ -128,9 +133,9 @@ pub struct ParselyWriteFieldData {
     #[darling(flatten)]
     common: ParselyCommonFieldData,
 
-    /// An optional function or closure that will be called to synchronize this field based on some
-    /// external data
-    sync_func: Option<ExprOrFunc>,
+    /// An expression or function call that will be used to update this field in the generated
+    /// `StateSync` implementation for its parent type.
+    sync_expr: Option<ExprOrFunc>,
 
     /// An list of expressions that should be passed as context to this field's sync method.  The
     /// sync method provides an opportunity to synchronize "linked" fields, where one field's value
@@ -154,12 +159,28 @@ impl ParselyWriteFieldData {
     }
 
     /// Get the context values that need to be passed to the read or write call for this field
-    pub(crate) fn context_values(&self) -> &[syn::Expr] {
+    pub(crate) fn context_values(&self) -> Vec<syn::Expr> {
+        let field_name = self
+            .ident
+            .as_ref()
+            .expect("Field must have a name")
+            .to_string();
         if let Some(ref field_context) = self.common.context {
-            field_context.expressions()
+            field_context.expressions(&format!("Write context for field '{field_name}'"))
         } else {
-            &[]
+            vec![]
         }
+    }
+
+    /// Get the context values that need to be passed to the read or write call for this field
+    pub(crate) fn sync_with_expressions(&self) -> Vec<syn::Expr> {
+        let field_name = self
+            .ident
+            .as_ref()
+            .expect("Field must have a name")
+            .to_string();
+        self.sync_with
+            .expressions(&format!("Sync context for field '{field_name}'"))
     }
 }
 

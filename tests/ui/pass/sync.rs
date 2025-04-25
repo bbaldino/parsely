@@ -7,10 +7,10 @@ use parsely_rs::*;
 struct Header {
     version: u8,
     packet_type: u8,
-    // sync_func can refer to an expression or a function and will be used to update the annotated
+    // sync_expr can refer to an expression or a function and will be used to update the annotated
     // field, it should evaluate to ParselyResult<T> where T is the type of the field.  You can
     // refer to variables defined in sync_args
-    #[parsely_write(sync_func = "ParselyResult::Ok(payload_length_bytes + 4)")]
+    #[parsely_write(sync_expr = "payload_length_bytes + 4")]
     length_bytes: u16,
 }
 

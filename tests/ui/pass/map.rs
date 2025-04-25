@@ -1,24 +1,26 @@
-use bitvec::prelude::*;
 use parsely_rs::*;
 
 #[derive(ParselyRead, ParselyWrite)]
 struct Foo {
-    #[parsely_read(map = "|v: u1| -> ParselyResult<bool> { Ok(v > 0) }")]
-    #[parsely_write(map = "|v: &bool| -> ParselyResult<u1> { Ok(u1::from(*v)) }")]
-    one: bool,
+    #[parsely_read(map = "|v: u8| { v.to_string() }")]
+    #[parsely_write(map = "|v: &str| { v.parse::<u8>() }")]
+    value: String,
 }
 
 fn main() {
-    let mut bits = Bits::from_static_bytes(&[0b10101010]);
+    let mut bits = Bits::from_static_bytes(&[42]);
 
     let foo = Foo::read::<NetworkOrder>(&mut bits, ()).expect("successful parse");
-    assert!(foo.one);
+    assert_eq!(foo.value, "42");
 
     let mut bits_mut = BitsMut::new();
 
-    let foo = Foo { one: true };
+    let foo = Foo {
+        value: String::from("42"),
+    };
 
-    foo.write::<NetworkOrder>(&mut bits_mut, ())
+    foo.write::<_, NetworkOrder>(&mut bits_mut, ())
         .expect("successful write");
-    assert_eq!(&bits_mut[..], bits![u8, Msb0; 1]);
+    let mut bits = bits_mut.freeze();
+    assert_eq!(bits.get_u8().unwrap(), 42);
 }
