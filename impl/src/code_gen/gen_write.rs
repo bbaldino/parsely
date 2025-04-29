@@ -104,7 +104,7 @@ fn generate_parsely_write_impl_struct(
             let field_name_string = field_name.to_string();
             if let Some(ref sync_expr) = f.sync_expr {
                 quote! {
-                    self.#field_name = (#sync_expr).into_parsely_result_read().with_context(|| format!("Syncing field '{}'", #field_name_string))?;
+                    self.#field_name = (#sync_expr).into_parsely_result().with_context(|| format!("Syncing field '{}'", #field_name_string))?;
                 }
             } else if f.sync_with.is_empty() && f.ty.is_wrapped() {
                 // We'll allow this combination to skip a call to sync: for types like Option<T> or

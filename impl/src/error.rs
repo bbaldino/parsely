@@ -36,11 +36,11 @@ where
 // expression evaluation where the writable limitations also don't exist, but aren't exactly on the
 // 'read path' (for example when syncing state)
 pub trait IntoParselyResult<T> {
-    fn into_parsely_result_read(self) -> ParselyResult<T>;
+    fn into_parsely_result(self) -> ParselyResult<T>;
 }
 
 impl<T> IntoParselyResult<T> for T {
-    fn into_parsely_result_read(self) -> ParselyResult<T> {
+    fn into_parsely_result(self) -> ParselyResult<T> {
         Ok(self)
     }
 }
@@ -49,7 +49,7 @@ impl<T, E> IntoParselyResult<T> for Result<T, E>
 where
     E: Into<anyhow::Error>,
 {
-    fn into_parsely_result_read(self) -> ParselyResult<T> {
+    fn into_parsely_result(self) -> ParselyResult<T> {
         self.map_err(Into::into)
     }
 }

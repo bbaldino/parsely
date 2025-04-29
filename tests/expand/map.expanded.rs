@@ -19,7 +19,7 @@ impl ::parsely_rs::ParselyRead for Foo {
                     res
                 }))?;
             (|v: u8| { v.to_string() })(original_value)
-                .into_parsely_result_read()
+                .into_parsely_result()
                 .with_context(|| ::alloc::__export::must_use({
                     let res = ::alloc::fmt::format(
                         format_args!("Mapping raw value for field \'{0}\'", "value"),

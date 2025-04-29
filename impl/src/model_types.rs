@@ -81,7 +81,7 @@ impl Context {
             .enumerate()
             .map(|(idx, e)| {
                 syn::parse2(quote! {
-                    (#e).into_parsely_result_read().with_context(|| format!("{}: expression {}", #context, #idx))?
+                    (#e).into_parsely_result().with_context(|| format!("{}: expression {}", #context, #idx))?
                 })
                 .unwrap()
             })
@@ -263,7 +263,7 @@ impl MapExpr {
             {
                 let original_value = ::#crate_name::ParselyRead::read::<_, T>(buf, ())
                     .with_context(|| format!("Reading raw value for field '{}'", #field_name_string))?;
-                (#map_expr)(original_value).into_parsely_result_read()
+                (#map_expr)(original_value).into_parsely_result()
                     .with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))
             }
         })
