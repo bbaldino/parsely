@@ -24,7 +24,7 @@ pub fn generate_parsely_read_impl(data: ParselyReadData) -> TokenStream {
 
 fn generate_plain_read(ty: &syn::Type, context_values: &[syn::Expr]) -> TokenStream {
     quote! {
-        #ty::read::<_, T>(buf, (#(#context_values,)*))
+        #ty::read::<T>(buf, (#(#context_values,)*))
     }
 }
 
@@ -202,9 +202,9 @@ fn generate_parsely_read_impl_struct(
     };
 
     quote! {
-        impl ::#crate_name::ParselyRead for #struct_name {
+        impl<B: BitBuf> ::#crate_name::ParselyRead<B> for #struct_name {
             type Ctx = (#(#context_types,)*);
-            fn read<B: BitBuf, T: ::#crate_name::ByteOrder>(buf: &mut B, #ctx_var: (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
+            fn read<T: ::#crate_name::ByteOrder>(buf: &mut B, #ctx_var: (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
                 #(#context_assignments)*
 
                 #body

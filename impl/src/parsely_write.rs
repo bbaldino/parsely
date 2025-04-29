@@ -22,22 +22,6 @@ macro_rules! impl_stateless_sync {
     };
 }
 
-/// A marker trait so it can be used as a trait bound
-pub trait ParselyWritable {
-    #[doc(hidden)]
-    fn _dummy_write<B, O, C>(buf: &mut B, order: O, ctx: C)
-    where
-        Self: ParselyWrite<B>;
-}
-
-impl<T> ParselyWritable for T {
-    fn _dummy_write<B, O, C>(_buf: &mut B, _order: O, _ctx: C)
-    where
-        T: ParselyWrite<B>,
-    {
-    }
-}
-
 pub trait ParselyWrite<B>: StateSync + Sized {
     type Ctx;
     fn write<T: ByteOrder>(&self, buf: &mut B, ctx: Self::Ctx) -> ParselyResult<()>;
