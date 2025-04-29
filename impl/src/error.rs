@@ -5,25 +5,24 @@ pub type ParselyResult<T> = anyhow::Result<T>;
 /// Helper trait to coerce values of both `T: ParselyWrite` and `Result<T, E>: E:
 /// Into<anyhow::Error>` into `ParselyResult<T>`.  We need a trait specifically for writing because
 /// if we don't bound the impl for `T` in some way there's ambiguity: the compiler doesn't know if
-/// we want `ParselyResult<T>` or `ParselyResult<Result<T, E>>`.
-pub trait IntoWritableParselyResult<T> {
-    fn into_parsely_result(self) -> ParselyResult<T>;
+pub trait IntoWritableParselyResult<T, B> {
+    fn into_writable_parsely_result(self) -> ParselyResult<T>;
 }
 
-impl<T> IntoWritableParselyResult<T> for T
+impl<T, B> IntoWritableParselyResult<T, B> for T
 where
-    T: ParselyWrite,
+    T: ParselyWrite<B>,
 {
-    fn into_parsely_result(self) -> ParselyResult<T> {
+    fn into_writable_parsely_result(self) -> ParselyResult<T> {
         Ok(self)
     }
 }
 
-impl<T, E> IntoWritableParselyResult<T> for Result<T, E>
+impl<T, E, B> IntoWritableParselyResult<T, B> for Result<T, E>
 where
     E: Into<anyhow::Error>,
 {
-    fn into_parsely_result(self) -> ParselyResult<T> {
+    fn into_writable_parsely_result(self) -> ParselyResult<T> {
         self.map_err(Into::into)
     }
 }
@@ -33,6 +32,9 @@ where
 /// concrete type and we can rely on type inference in order to figure out what that should be.
 /// Because of that we don't want/need the `ParselyWrite` trait bounds on the impl like we have
 /// above for the writable side, so we need a different trait here.
+// TODO: remove the 'read' from these method calls, as they get used in places like context
+// expression evaluation where the writable limitations also don't exist, but aren't exactly on the
+// 'read path' (for example when syncing state)
 pub trait IntoParselyResult<T> {
     fn into_parsely_result_read(self) -> ParselyResult<T>;
 }

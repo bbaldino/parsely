@@ -60,18 +60,18 @@ fn generate_parsely_write_impl_struct(
             } else if f.ty.is_option() {
                 field_write_output.extend(quote! {
                     if let Some(ref v) = self.#field_name {
-                        #write_type::write::<_, T>(v, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
+                        #write_type::write::<T>(v, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
                     }
                 });
             } else if f.ty.is_collection() {
                 field_write_output.extend(quote! {
                     self.#field_name.iter().enumerate().map(|(idx, v)| {
-                        #write_type::write::<_, T>(v, buf, (#(#context_values,)*)).with_context(|| format!("Index {idx}"))
+                        #write_type::write::<T>(v, buf, (#(#context_values,)*)).with_context(|| format!("Index {idx}"))
                     }).collect::<ParselyResult<Vec<_>>>().with_context(|| format!("Writing field '{}'", #field_name_string))?;
                 });
             } else {
                 field_write_output.extend(quote! {
-                    #write_type::write::<_, T>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
+                    #write_type::write::<T>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
                 });
             }
 
@@ -104,7 +104,7 @@ fn generate_parsely_write_impl_struct(
             let field_name_string = field_name.to_string();
             if let Some(ref sync_expr) = f.sync_expr {
                 quote! {
-                    self.#field_name = (#sync_expr).into_parsely_result().with_context(|| format!("Syncing field '{}'", #field_name_string))?;
+                    self.#field_name = (#sync_expr).into_parsely_result_read().with_context(|| format!("Syncing field '{}'", #field_name_string))?;
                 }
             } else if f.sync_with.is_empty() && f.ty.is_wrapped() {
                 // We'll allow this combination to skip a call to sync: for types like Option<T> or
@@ -142,9 +142,9 @@ fn generate_parsely_write_impl_struct(
     };
 
     quote! {
-        impl ::#crate_name::ParselyWrite for #struct_name {
+        impl<B: BitBufMut> ::#crate_name::ParselyWrite<B> for #struct_name {
             type Ctx = (#(#context_types,)*);
-            fn write<B: BitBufMut, T: ByteOrder>(
+            fn write<T: ByteOrder>(
                 &self,
                 buf: &mut B,
                 ctx: Self::Ctx,

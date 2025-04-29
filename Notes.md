@@ -486,3 +486,23 @@ after doing the code I realized I had no good way to test it because the
 built-in buf doesn't provide anything that could be used with it, which makes
 me think putting it in parsely might not make sense.  This use case _could_
 have used the custom reader attribute, maybe?
+
+### Using ParselyRead/ParselyWrite with types other than BitBuf/BitBufMut
+
+For things like RTP parsing, we don't want to use the BitBuf/BitBufMut
+abstractions because they limit the efficiency we can get when we use
+Bits/BitsMut directly.  It would be nice to be able to leverage
+ParselyRead/ParselyWrite for other types as well: i.e. manually implementing it
+for the RTP packet types.  The problem is that the trait bound
+(BitBuf/BitBufMut) is built into the trait, so we can't really do that.  I
+looked at changing the "buffer" type to be an associated type, but that has a
+couple problems:
+
+* We can't do `type Buf = impl BitBuf` or `type Buf = dyn BitBUf` so we lose
+the ability to say "some BitBuf type".  We _could_ add another layer of
+indirection here, but that's a bit of a bummer.
+* Supporting multiple buffer types also makes me think that it'd be nice to be
+able to provide different/optimized read/write impls for different types (e.g.
+one for BitBuf and another when we know it's a Bits specifically or something)
+
+--> look into a refactoring of the read/write traits to accomplish this

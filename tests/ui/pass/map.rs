@@ -21,7 +21,7 @@ fn main() {
         value: String::from("42"),
     };
 
-    foo.write::<_, NetworkOrder>(&mut bits_mut, ())
+    foo.write::<NetworkOrder>(&mut bits_mut, ())
         .expect("successful write");
     let mut bits = bits_mut.freeze();
     assert_eq!(bits.get_u8().unwrap(), 42);

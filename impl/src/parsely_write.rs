@@ -22,21 +22,33 @@ macro_rules! impl_stateless_sync {
     };
 }
 
-pub trait ParselyWrite: StateSync + Sized {
+/// A marker trait so it can be used as a trait bound
+pub trait ParselyWritable {
+    #[doc(hidden)]
+    fn _dummy_write<B, O, C>(buf: &mut B, order: O, ctx: C)
+    where
+        Self: ParselyWrite<B>;
+}
+
+impl<T> ParselyWritable for T {
+    fn _dummy_write<B, O, C>(_buf: &mut B, _order: O, _ctx: C)
+    where
+        T: ParselyWrite<B>,
+    {
+    }
+}
+
+pub trait ParselyWrite<B>: StateSync + Sized {
     type Ctx;
-    fn write<B: BitBufMut, T: ByteOrder>(&self, buf: &mut B, ctx: Self::Ctx) -> ParselyResult<()>;
+    fn write<T: ByteOrder>(&self, buf: &mut B, ctx: Self::Ctx) -> ParselyResult<()>;
 }
 
 macro_rules! impl_parsely_write_builtin {
     ($type:ty) => {
-        impl ParselyWrite for $type {
+        impl<B: BitBufMut> ParselyWrite<B> for $type {
             type Ctx = ();
 
-            fn write<B: BitBufMut, T: ByteOrder>(
-                &self,
-                buf: &mut B,
-                _: Self::Ctx,
-            ) -> ParselyResult<()> {
+            fn write<T: ByteOrder>(&self, buf: &mut B, _: Self::Ctx) -> ParselyResult<()> {
                 ::paste::paste! {
                     Ok(buf.[<put_ $type>](*self)?)
                 }
@@ -47,13 +59,9 @@ macro_rules! impl_parsely_write_builtin {
 
 macro_rules! impl_parsely_write_builtin_bo {
     ($type:ty) => {
-        impl ParselyWrite for $type {
+        impl<B: BitBufMut> ParselyWrite<B> for $type {
             type Ctx = ();
-            fn write<B: BitBufMut, T: ByteOrder>(
-                &self,
-                buf: &mut B,
-                _: Self::Ctx,
-            ) -> ParselyResult<()> {
+            fn write<T: ByteOrder>(&self, buf: &mut B, _: Self::Ctx) -> ParselyResult<()> {
                 ::paste::paste! {
                     Ok(buf.[<put_ $type>]::<T>(*self)?)
                 }

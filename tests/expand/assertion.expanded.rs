@@ -33,13 +33,9 @@ impl ::parsely_rs::ParselyRead for Foo {
         Ok(Self { value })
     }
 }
-impl ::parsely_rs::ParselyWrite for Foo {
+impl<B: BitBufMut> ::parsely_rs::ParselyWrite<B> for Foo {
     type Ctx = ();
-    fn write<B: BitBufMut, T: ByteOrder>(
-        &self,
-        buf: &mut B,
-        ctx: Self::Ctx,
-    ) -> ParselyResult<()> {
+    fn write<T: ByteOrder>(&self, buf: &mut B, ctx: Self::Ctx) -> ParselyResult<()> {
         let __value_assertion_func = |v: &u8| *v % 2 == 0;
         if !__value_assertion_func(&self.value) {
             return ::anyhow::__private::Err(
@@ -56,7 +52,7 @@ impl ::parsely_rs::ParselyWrite for Foo {
                 ),
             );
         }
-        u8::write::<_, T>(&self.value, buf, ())
+        u8::write::<T>(&self.value, buf, ())
             .with_context(|| ::alloc::__export::must_use({
                 let res = ::alloc::fmt::format(
                     format_args!("Writing field \'{0}\'", "value"),

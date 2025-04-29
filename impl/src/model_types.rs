@@ -81,7 +81,7 @@ impl Context {
             .enumerate()
             .map(|(idx, e)| {
                 syn::parse2(quote! {
-                    (#e).into_parsely_result().with_context(|| format!("{}: expression {}", #context, #idx))?
+                    (#e).into_parsely_result_read().with_context(|| format!("{}: expression {}", #context, #idx))?
                 })
                 .unwrap()
             })
@@ -275,9 +275,13 @@ impl MapExpr {
         let map_expr = &self.0;
         tokens.extend(quote! {
             {
-                let mapped_value = (#map_expr)(&self.#field_name).into_parsely_result()
+                let mapped_value = (#map_expr)(&self.#field_name);
+                // Coerce the result of the mapping function into a ParselyResult<T> where we know
+                // T is writable to the buffer.  We need to use this syntax because otherwise the
+                // compiler gets caught up on trying to infer the buffer type.
+                let result = <_ as IntoWritableParselyResult<_, B>>::into_writable_parsely_result(mapped_value)
                     .with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))?;
-                ::#crate_name::ParselyWrite::write::<B, T>(&mapped_value, buf, ())
+                ::#crate_name::ParselyWrite::write::<T>(&result, buf, ())
                     .with_context(|| format!("Writing mapped value for field '{}'", #field_name_string))?;
             }
         })

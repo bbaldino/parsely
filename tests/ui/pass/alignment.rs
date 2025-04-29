@@ -15,6 +15,6 @@ fn main() {
 
     let mut bits_mut = BitsMut::new();
 
-    Foo::write::<_, NetworkOrder>(&foo, &mut bits_mut, ()).unwrap();
+    Foo::write::<NetworkOrder>(&foo, &mut bits_mut, ()).unwrap();
     assert_eq!(bits_mut.len_bytes(), 4);
 }

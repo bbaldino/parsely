@@ -13,5 +13,5 @@ fn main() {
         two: u3::new(4),
     };
 
-    Foo::write::<_, NetworkOrder>(&foo, &mut bits_mut, ()).unwrap();
+    Foo::write::<NetworkOrder>(&foo, &mut bits_mut, ()).unwrap();
 }
