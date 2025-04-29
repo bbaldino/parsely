@@ -9,12 +9,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
 
 [[package]]
-name = "autocfg"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
-
-[[package]]
 name = "basic-toml"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -25,9 +19,9 @@ dependencies = [
 
 [[package]]
 name = "bits-io"
-version = "0.3.0"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4360acdd981d32f0bbac44ddbce5ce5d713e288a22802c9a26f60d290256d426"
+checksum = "334d5023bf30d7edb7798b4dbbef2e2d3c121ecd885445cb1f6b0dbe879ab5e8"
 dependencies = [
  "bitvec",
  "bytes",
@@ -170,20 +164,11 @@ checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 
 [[package]]
 name = "nsw-types"
-version = "0.1.11"
+version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebce55c42e15bdd5b42cf5256965359ffe0f7c4398eb1ce21d6828bd00868c03"
+checksum = "1268a985a9c927a01dc269ca861795705ead85b2d8a1124d5cda7878aaa7b787"
 dependencies = [
- "num-traits",
-]
-
-[[package]]
-name = "num-traits"
-version = "0.2.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
-dependencies = [
- "autocfg",
+ "bitvec",
 ]
 
 [[package]]
