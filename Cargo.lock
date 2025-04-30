@@ -19,9 +19,9 @@ dependencies = [
 
 [[package]]
 name = "bits-io"
-version = "0.5.4"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "334d5023bf30d7edb7798b4dbbef2e2d3c121ecd885445cb1f6b0dbe879ab5e8"
+checksum = "db8ee456cc74052abbbfc9e94cff1484c5b23b200aec976a47854078bc16a272"
 dependencies = [
  "bitvec",
  "bytes",
