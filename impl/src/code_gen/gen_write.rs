@@ -127,11 +127,8 @@ fn generate_parsely_write_impl_struct(
 
             #(#field_writes)*
 
-            let __bytes_remaining_end = buf.remaining_mut_bytes();
-            let mut __amount_written = __bytes_remaining_start - __bytes_remaining_end;
-            while __amount_written % #alignment != 0 {
+            while (__bytes_remaining_start - buf.remaining_mut_bytes()) % #alignment != 0 {
                 let _ = buf.put_u8(0).context("padding")?;
-                __amount_written += 1;
             }
 
         }

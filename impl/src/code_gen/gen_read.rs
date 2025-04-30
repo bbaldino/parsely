@@ -182,11 +182,8 @@ fn generate_parsely_read_impl_struct(
 
             #(#field_reads)*
 
-            let __bytes_remaining_end = buf.remaining_bytes();
-            let mut __amount_read = __bytes_remaining_start - __bytes_remaining_end;
-            while __amount_read % #alignment != 0 {
+            while (__bytes_remaining_start - buf.remaining_bytes()) % #alignment != 0 {
                 buf.get_u8().context("padding")?;
-                __amount_read += 1;
             }
         }
     } else {

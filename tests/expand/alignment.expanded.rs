@@ -11,11 +11,8 @@ impl<B: BitBuf> ::parsely_rs::ParselyRead<B> for Foo {
     ) -> ::parsely_rs::ParselyResult<Self> {
         let __bytes_remaining_start = buf.remaining_bytes();
         let one = u8::read::<T>(buf, ()).with_context(|| "Reading field 'one'")?;
-        let __bytes_remaining_end = buf.remaining_bytes();
-        let mut __amount_read = __bytes_remaining_start - __bytes_remaining_end;
-        while __amount_read % 4usize != 0 {
+        while (__bytes_remaining_start - buf.remaining_bytes()) % 4usize != 0 {
             buf.get_u8().context("padding")?;
-            __amount_read += 1;
         }
         Ok(Self { one })
     }
@@ -31,11 +28,8 @@ impl<B: BitBufMut> ::parsely_rs::ParselyWrite<B> for Foo {
                 );
                 res
             }))?;
-        let __bytes_remaining_end = buf.remaining_mut_bytes();
-        let mut __amount_written = __bytes_remaining_start - __bytes_remaining_end;
-        while __amount_written % 4usize != 0 {
+        while (__bytes_remaining_start - buf.remaining_mut_bytes()) % 4usize != 0 {
             let _ = buf.put_u8(0).context("padding")?;
-            __amount_written += 1;
         }
         Ok(())
     }
