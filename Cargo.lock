@@ -173,7 +173,7 @@ dependencies = [
 
 [[package]]
 name = "parsely-impl"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "bits-io",
@@ -187,7 +187,7 @@ dependencies = [
 
 [[package]]
 name = "parsely-macro"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "parsely-impl",
  "proc-macro2",
@@ -197,7 +197,7 @@ dependencies = [
 
 [[package]]
 name = "parsely-rs"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "bitvec",
  "macrotest",

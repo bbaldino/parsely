@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/bbaldino/parsely/compare/parsely-impl-v0.3.0...parsely-impl-v0.4.0) - 2025-05-01
+
+### Added
+
+- trait rework ([#9](https://github.com/bbaldino/parsely/pull/9))
+- upgrade bits-io, re-export BitSliceUxExts
+
 ## [0.3.0](https://github.com/bbaldino/parsely/compare/parsely-impl-v0.2.0...parsely-impl-v0.3.0) - 2025-04-25
 
 ### Other
