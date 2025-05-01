@@ -12,7 +12,7 @@ struct Foo {
 fn main() {
     let mut bits = Bits::from_static_bytes(&[42]);
 
-    let foo = Foo::read::<_, NetworkOrder>(&mut bits, ()).expect("successful parse");
+    let foo = Foo::read::<NetworkOrder>(&mut bits, ()).expect("successful parse");
     assert_eq!(foo.value, "42");
 
     let mut bits_mut = BitsMut::new();
@@ -21,7 +21,7 @@ fn main() {
         value: String::from("42"),
     };
 
-    foo.write::<_, NetworkOrder>(&mut bits_mut, ())
+    foo.write::<NetworkOrder>(&mut bits_mut, ())
         .expect("successful write");
     let mut bits = bits_mut.freeze();
     assert_eq!(bits.get_u8().unwrap(), 42);

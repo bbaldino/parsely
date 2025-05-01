@@ -20,7 +20,7 @@ struct Foo {
 
 fn main() {
     let mut bits = Bits::from_static_bytes(&[1, 2, 3, 4]);
-    let foo = Foo::read::<_, NetworkOrder>(&mut bits, (2,)).expect("successful parse");
+    let foo = Foo::read::<NetworkOrder>(&mut bits, (2,)).expect("successful parse");
 
     // Should have only read 2 values
     assert_eq!(foo.data.len(), 2);

@@ -60,18 +60,18 @@ fn generate_parsely_write_impl_struct(
             } else if f.ty.is_option() {
                 field_write_output.extend(quote! {
                     if let Some(ref v) = self.#field_name {
-                        #write_type::write::<_, T>(v, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
+                        #write_type::write::<T>(v, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
                     }
                 });
             } else if f.ty.is_collection() {
                 field_write_output.extend(quote! {
                     self.#field_name.iter().enumerate().map(|(idx, v)| {
-                        #write_type::write::<_, T>(v, buf, (#(#context_values,)*)).with_context(|| format!("Index {idx}"))
+                        #write_type::write::<T>(v, buf, (#(#context_values,)*)).with_context(|| format!("Index {idx}"))
                     }).collect::<ParselyResult<Vec<_>>>().with_context(|| format!("Writing field '{}'", #field_name_string))?;
                 });
             } else {
                 field_write_output.extend(quote! {
-                    #write_type::write::<_, T>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
+                    #write_type::write::<T>(&self.#field_name, buf, (#(#context_values,)*)).with_context(|| format!("Writing field '{}'", #field_name_string))?;
                 });
             }
 
@@ -127,11 +127,8 @@ fn generate_parsely_write_impl_struct(
 
             #(#field_writes)*
 
-            let __bytes_remaining_end = buf.remaining_mut_bytes();
-            let mut __amount_written = __bytes_remaining_start - __bytes_remaining_end;
-            while __amount_written % #alignment != 0 {
+            while (__bytes_remaining_start - buf.remaining_mut_bytes()) % #alignment != 0 {
                 let _ = buf.put_u8(0).context("padding")?;
-                __amount_written += 1;
             }
 
         }
@@ -142,9 +139,9 @@ fn generate_parsely_write_impl_struct(
     };
 
     quote! {
-        impl ::#crate_name::ParselyWrite for #struct_name {
+        impl<B: BitBufMut> ::#crate_name::ParselyWrite<B> for #struct_name {
             type Ctx = (#(#context_types,)*);
-            fn write<B: BitBufMut, T: ByteOrder>(
+            fn write<T: ByteOrder>(
                 &self,
                 buf: &mut B,
                 ctx: Self::Ctx,

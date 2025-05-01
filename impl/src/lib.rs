@@ -17,6 +17,7 @@ pub use bits_io::{
 };
 
 pub mod nsw_types {
+    pub use bits_io::nsw_types::from_bitslice::BitSliceUxExts;
     pub use bits_io::nsw_types::*;
 }
 
