@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/bbaldino/parsely/compare/parsely-impl-v0.4.0...parsely-impl-v0.4.1) - 2025-05-02
+
+### Fixed
+
+- optimize collection reads when we know the number of elements
+
+### Other
+
+- update bits-io version
+
 ## [0.4.0](https://github.com/bbaldino/parsely/compare/parsely-impl-v0.3.0...parsely-impl-v0.4.0) - 2025-05-01
 
 ### Added
