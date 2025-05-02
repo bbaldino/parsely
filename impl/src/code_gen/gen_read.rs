@@ -37,9 +37,16 @@ fn generate_collection_read(
     match limit {
         CollectionLimit::Count(count) => {
             quote! {
-                (0..(#count)).map(|idx| {
-                    #plain_read.with_context( || format!("Index {idx}"))
-                }).collect::<ParselyResult<Vec<_>>>()
+                (|| {
+                    let item_count = #count;
+                    let mut items: Vec<#ty> = Vec::with_capacity(item_count as usize);
+                    for idx in 0..item_count {
+                        let item = #plain_read.with_context(|| format!("Index {idx}"))?;
+                        items.push(item);
+                    }
+                    ParselyResult::Ok(items)
+
+                })()
             }
         }
         CollectionLimit::While(pred) => {
