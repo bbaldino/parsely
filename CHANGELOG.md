@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5](https://github.com/bbaldino/parsely/compare/parsely-rs-v0.1.4...parsely-rs-v0.1.5) - 2025-05-05
+
+### Added
+
+- update bits-io version
+
 ## [0.1.4](https://github.com/bbaldino/parsely/compare/parsely-rs-v0.1.3...parsely-rs-v0.1.4) - 2025-05-02
 
 ### Fixed
