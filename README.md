@@ -177,17 +177,20 @@ returns a `ParselyResult<U>` where U is `ParselyWrite`.
 <details>
   <summary>Click to expand</summary>
 
-This (quite contrived) example has a boolean field but reads a u1 from the
+This example has a String field but reads a u8 from the
 buffer and converts it.  On write it does the opposite.  
 
 ```rust
+use parsely_rs::*;
+
 #[derive(ParselyRead, ParselyWrite)]
 struct Foo {
-    #[parsely_read(map = "|v: u1| -> ParselyResult<bool> { Ok(v > 0) }")]
-    #[parsely_write(map = "|v: &bool| -> ParselyResult<u1> { Ok(u1::from(*v)) }")]
-    one: bool,
+    // Closures can return a raw value...
+    #[parsely_read(map = "|v: u8| { v.to_string() }")]
+    // ...or a Result<T, E> as long as E: Into<anyhow::Error>
+    #[parsely_write(map = "|v: &str| { v.parse::<u8>() }")]
+    value: String,
 }
-
 ```
 
 </details>
