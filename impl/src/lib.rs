@@ -36,8 +36,6 @@ use syn_helpers::TypeExts;
 pub fn derive_parsely_read(item: TokenStream) -> std::result::Result<TokenStream, syn::Error> {
     let ast: DeriveInput = syn::parse2(item)?;
     let data = ParselyReadData::from_derive_input(&ast)?;
-    // eprintln!("parsely_read data = {data:#?}");
-    // eprintln!("HELLO, WORLD, item = {ast:#?}");
 
     Ok(generate_parsely_read_impl(data))
 }
@@ -46,8 +44,6 @@ pub fn derive_parsely_read(item: TokenStream) -> std::result::Result<TokenStream
 pub fn derive_parsely_write(item: TokenStream) -> std::result::Result<TokenStream, syn::Error> {
     let ast: DeriveInput = syn::parse2(item)?;
     let data = ParselyWriteData::from_derive_input(&ast)?;
-    // eprintln!("parsely_write data = {data:#?}");
-    // eprintln!("HELLO, WORLD, item = {ast:#?}");
 
     Ok(generate_parsely_write_impl(data))
 }
