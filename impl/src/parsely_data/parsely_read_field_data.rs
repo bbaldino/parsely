@@ -103,9 +103,10 @@ impl ToTokens for ParselyReadFieldData {
         } else if self.common.ty.is_collection() {
             // We've ensure collection_limit is set in this case elswhere.
             let limit = self.collection_limit.as_ref().unwrap();
+            let read_type = self.buffer_type();
             output.extend(generate_collection_read(
                 limit,
-                &self.common.ty,
+                read_type,
                 &self.context_values(),
             ));
         } else {
