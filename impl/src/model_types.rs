@@ -269,6 +269,22 @@ impl MapExpr {
         })
     }
 
+    pub(crate) fn to_read_map_tokens2(&self, field_name: &MemberIdent, tokens: &mut TokenStream) {
+        let crate_name = get_crate_name();
+        let field_name_string = field_name.as_friendly_string();
+        let map_expr = &self.0;
+        // TODO: is there a case where context might be required for reading the 'buffer_type'
+        // value?
+        tokens.extend(quote! {
+            {
+                let original_value = ::#crate_name::ParselyRead::read::<T>(buf, ())
+                    .with_context(|| format!("Reading raw value for field '{}'", #field_name_string))?;
+                (#map_expr)(original_value).into_parsely_result()
+                    .with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))
+            }
+        })
+    }
+
     pub(crate) fn to_write_map_tokens(&self, field_name: &syn::Ident, tokens: &mut TokenStream) {
         let crate_name = get_crate_name();
         let field_name_string = field_name.to_string();
@@ -356,6 +372,26 @@ pub(crate) fn wrap_read_with_padding_handling(
     }
 }
 
+pub(crate) fn wrap_read_with_padding_handling2(
+    element_ident: &MemberIdent,
+    alignment: usize,
+    inner: TokenStream,
+) -> TokenStream {
+    let bytes_read_before_ident = format_ident!(
+        "__bytes_read_before_{}_read",
+        element_ident.as_friendly_string()
+    );
+    quote! {
+        let #bytes_read_before_ident = buf.remaining_bytes();
+
+        #inner
+
+        while (#bytes_read_before_ident - buf.remaining_bytes()) % #alignment != 0 {
+            buf.get_u8().context("consuming padding")?;
+        }
+    }
+}
+
 pub(crate) fn wrap_write_with_padding_handling(
     element_ident: &syn::Ident,
     alignment: usize,
@@ -375,6 +411,55 @@ pub(crate) fn wrap_write_with_padding_handling(
         while #amount_written_ident % #alignment != 0 {
             buf.put_u8(0).context("padding")?;
             #amount_written_ident += 1;
+        }
+    }
+}
+
+pub(crate) enum MemberIdent {
+    Named(syn::Ident),
+    // Unnamed members just have an index
+    Unnamed(u32),
+}
+
+impl MemberIdent {
+    /// Create a `MemberIdent` from the given `ident`, if it's `Some` or the given `index` if not.
+    pub fn from_ident_or_index(ident: Option<&syn::Ident>, index: u32) -> Self {
+        if let Some(ident) = ident {
+            MemberIdent::Named(ident.to_owned())
+        } else {
+            MemberIdent::Unnamed(index)
+        }
+    }
+
+    pub fn from_ident(ident: &syn::Ident) -> Self {
+        MemberIdent::Named(ident.to_owned())
+    }
+
+    /// Return the value of this `MemberIdent` as a user-friendly String.  This version is intended
+    /// to be used for things like error messages.
+    pub fn as_friendly_string(&self) -> String {
+        match self {
+            MemberIdent::Named(ident) => ident.to_string(),
+            MemberIdent::Unnamed(index) => format!("Field {index}"),
+        }
+    }
+
+    /// Return the value of this `MemberIdent` in the form of a `syn::Ident` that can be used as a
+    /// local variable.
+    pub fn as_variable_name(&self) -> syn::Ident {
+        match self {
+            MemberIdent::Named(ident) => ident.clone(),
+            MemberIdent::Unnamed(index) => format_ident!("field_{index}"),
+        }
+    }
+
+    /// Return the value of this `MemberIdent` in the form of a `syn::Ident` such that it can be
+    /// used to access this field inside the containing structure or enum.  E.g. for a named
+    /// variable it will be the field's name, for an unnamed variable it will be the field's index.
+    pub fn field_name(&self) -> syn::Ident {
+        match self {
+            MemberIdent::Named(ident) => ident.clone(),
+            MemberIdent::Unnamed(index) => format_ident!("{index}"),
         }
     }
 }

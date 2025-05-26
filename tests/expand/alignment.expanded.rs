@@ -9,10 +9,10 @@ impl<B: BitBuf> ::parsely_rs::ParselyRead<B> for Foo {
         buf: &mut B,
         _ctx: (),
     ) -> ::parsely_rs::ParselyResult<Self> {
-        let __bytes_remaining_start = buf.remaining_bytes();
+        let __bytes_read_before_Foo_read = buf.remaining_bytes();
         let one = u8::read::<T>(buf, ()).with_context(|| "Reading field 'one'")?;
-        while (__bytes_remaining_start - buf.remaining_bytes()) % 4usize != 0 {
-            buf.get_u8().context("padding")?;
+        while (__bytes_read_before_Foo_read - buf.remaining_bytes()) % 4usize != 0 {
+            buf.get_u8().context("consuming padding")?;
         }
         Ok(Self { one })
     }

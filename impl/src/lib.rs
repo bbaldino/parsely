@@ -1,6 +1,7 @@
 mod code_gen;
 pub mod error;
 mod model_types;
+pub mod parsely_data;
 pub mod parsely_read;
 pub mod parsely_write;
 mod syn_helpers;
@@ -35,7 +36,7 @@ use syn_helpers::TypeExts;
 #[doc(hidden)]
 pub fn derive_parsely_read(item: TokenStream) -> std::result::Result<TokenStream, syn::Error> {
     let ast: DeriveInput = syn::parse2(item)?;
-    let data = ParselyReadData::from_derive_input(&ast)?;
+    let data = ParselyReadReceiver::from_derive_input(&ast)?;
 
     Ok(generate_parsely_read_impl(data))
 }
@@ -49,7 +50,7 @@ pub fn derive_parsely_write(item: TokenStream) -> std::result::Result<TokenStrea
 }
 
 #[derive(Debug, FromField, FromMeta)]
-pub struct ParselyCommonFieldData {
+pub struct ParselyCommonFieldReceiver {
     // Note: 'magic' fields (ident, ty, etc.) don't work with 'flatten' so can't be held here.
     // See https://github.com/TedDriggs/darling/issues/330
 
@@ -69,13 +70,13 @@ pub struct ParselyCommonFieldData {
 
 #[derive(Debug, FromField)]
 #[darling(attributes(parsely, parsely_read))]
-pub struct ParselyReadFieldData {
+pub struct ParselyReadFieldReceiver {
     ident: Option<syn::Ident>,
 
     ty: syn::Type,
 
     #[darling(flatten)]
-    common: ParselyCommonFieldData,
+    common: ParselyCommonFieldReceiver,
     /// 'count' is required when the field is a collection
     count: Option<syn::Expr>,
     /// 'while' is an alternate option to 'count' to use with a collection field
@@ -91,10 +92,11 @@ pub struct ParselyReadFieldData {
     when: Option<syn::Expr>,
 }
 
-impl ParselyReadFieldData {
+impl ParselyReadFieldReceiver {
     /// Get the 'buffer type' of this field (the type that will be used when reading from or
     /// writing to the buffer): for wrapper types (like [`Option`] or [`Vec`]), this will be the
     /// inner type.
+    /// TODO: this will move to the data type and go away from ehre
     pub(crate) fn buffer_type(&self) -> &syn::Type {
         if self.ty.is_option() || self.ty.is_collection() {
             self.ty
@@ -128,7 +130,7 @@ pub struct ParselyWriteFieldData {
     ty: syn::Type,
 
     #[darling(flatten)]
-    common: ParselyCommonFieldData,
+    common: ParselyCommonFieldReceiver,
 
     /// An expression or function call that will be used to update this field in the generated
     /// `StateSync` implementation for its parent type.
@@ -183,11 +185,11 @@ impl ParselyWriteFieldData {
 
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(parsely, parsely_read), supports(struct_any, enum_any))]
-pub struct ParselyReadData {
+pub struct ParselyReadReceiver {
     ident: syn::Ident,
     required_context: Option<TypedFnArgList>,
     alignment: Option<usize>,
-    data: ast::Data<(), ParselyReadFieldData>,
+    data: ast::Data<(), ParselyReadFieldReceiver>,
 }
 
 #[derive(Debug, FromDeriveInput)]

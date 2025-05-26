@@ -4,32 +4,47 @@ use quote::{format_ident, quote};
 use crate::{
     get_crate_name,
     model_types::{wrap_read_with_padding_handling, CollectionLimit, TypedFnArgList},
+    parsely_data::{
+        parsely_read_enum_data::ParselyReadEnumData,
+        parsely_read_struct_data::ParselyReadStructData,
+    },
     syn_helpers::TypeExts,
-    ParselyReadData, ParselyReadFieldData,
+    ParselyReadFieldReceiver, ParselyReadReceiver,
 };
 
-pub fn generate_parsely_read_impl(data: ParselyReadData) -> TokenStream {
-    let struct_name = data.ident;
+pub fn generate_parsely_read_impl(data: ParselyReadReceiver) -> TokenStream {
     if data.data.is_struct() {
-        generate_parsely_read_impl_struct(
-            struct_name,
-            data.data.take_struct().unwrap(),
-            data.alignment,
-            data.required_context,
-        )
+        let struct_data = ParselyReadStructData::try_from(data).unwrap();
+        generate_parsely_read_impl_for_struct(struct_data)
+        // generate_parsely_read_impl_struct(
+        //     data.ident,
+        //     data.data.take_struct().unwrap(),
+        //     data.alignment,
+        //     data.required_context,
+        // )
     } else {
         todo!()
     }
 }
 
-fn generate_plain_read(ty: &syn::Type, context_values: &[syn::Expr]) -> TokenStream {
+fn generate_parsely_read_impl_for_struct(data: ParselyReadStructData) -> TokenStream {
+    quote! {
+        #data
+    }
+}
+
+fn generate_parsely_read_impl_for_enum(data: ParselyReadEnumData) -> TokenStream {
+    TokenStream::new()
+}
+
+pub(crate) fn generate_plain_read(ty: &syn::Type, context_values: &[syn::Expr]) -> TokenStream {
     quote! {
         #ty::read::<T>(buf, (#(#context_values,)*))
     }
 }
 
-fn generate_collection_read(
-    limit: CollectionLimit,
+pub(crate) fn generate_collection_read(
+    limit: &CollectionLimit,
     ty: &syn::Type,
     context_values: &[syn::Expr],
 ) -> TokenStream {
@@ -66,7 +81,7 @@ fn generate_collection_read(
     }
 }
 
-fn wrap_in_optional(when_expr: &syn::Expr, inner: TokenStream) -> TokenStream {
+pub(crate) fn wrap_in_optional(when_expr: &syn::Expr, inner: TokenStream) -> TokenStream {
     quote! {
         if #when_expr {
             Some(#inner)
@@ -98,7 +113,7 @@ fn wrap_in_optional(when_expr: &syn::Expr, inner: TokenStream) -> TokenStream {
 ///    read should actually be done.
 /// 7. Finally, if an 'alignment' attribute is present, code is added to detect and consume any
 ///    padding after the read.
-fn generate_field_read(field_data: &ParselyReadFieldData) -> TokenStream {
+fn generate_field_read(field_data: &ParselyReadFieldReceiver) -> TokenStream {
     let field_name = field_data
         .ident
         .as_ref()
@@ -123,7 +138,7 @@ fn generate_field_read(field_data: &ParselyReadFieldData) -> TokenStream {
         } else {
             panic!("Collection field '{field_name}' must have either 'count' or 'while' attribute");
         };
-        output.extend(generate_collection_read(limit, read_type, &context_values));
+        output.extend(generate_collection_read(&limit, read_type, &context_values));
     } else {
         output.extend(generate_plain_read(read_type, &context_values));
     }
@@ -158,7 +173,7 @@ fn generate_field_read(field_data: &ParselyReadFieldData) -> TokenStream {
 
 fn generate_parsely_read_impl_struct(
     struct_name: syn::Ident,
-    fields: darling::ast::Fields<ParselyReadFieldData>,
+    fields: darling::ast::Fields<ParselyReadFieldReceiver>,
     struct_alignment: Option<usize>,
     required_context: Option<TypedFnArgList>,
 ) -> TokenStream {
