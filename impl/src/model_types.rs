@@ -5,6 +5,7 @@ use syn::parse::Parse;
 
 use crate::get_crate_name;
 
+#[derive(Debug)]
 pub(crate) enum CollectionLimit {
     Count(syn::Expr),
     While(syn::Expr),
@@ -253,23 +254,7 @@ impl FromMeta for MapExpr {
 }
 
 impl MapExpr {
-    pub(crate) fn to_read_map_tokens(&self, field_name: &syn::Ident, tokens: &mut TokenStream) {
-        let crate_name = get_crate_name();
-        let field_name_string = field_name.to_string();
-        let map_expr = &self.0;
-        // TODO: is there a case where context might be required for reading the 'buffer_type'
-        // value?
-        tokens.extend(quote! {
-            {
-                let original_value = ::#crate_name::ParselyRead::read::<T>(buf, ())
-                    .with_context(|| format!("Reading raw value for field '{}'", #field_name_string))?;
-                (#map_expr)(original_value).into_parsely_result()
-                    .with_context(|| format!("Mapping raw value for field '{}'", #field_name_string))
-            }
-        })
-    }
-
-    pub(crate) fn to_read_map_tokens2(&self, field_name: &MemberIdent, tokens: &mut TokenStream) {
+    pub(crate) fn to_read_map_tokens(&self, field_name: &MemberIdent, tokens: &mut TokenStream) {
         let crate_name = get_crate_name();
         let field_name_string = field_name.as_friendly_string();
         let map_expr = &self.0;
@@ -350,29 +335,6 @@ impl Assertion {
 }
 
 pub(crate) fn wrap_read_with_padding_handling(
-    element_ident: &syn::Ident,
-    alignment: usize,
-    inner: TokenStream,
-) -> TokenStream {
-    let bytes_read_before_ident = format_ident!("__bytes_read_before_{element_ident}_read");
-    let bytes_read_after_ident = format_ident!("__bytes_read_after_{element_ident}_read");
-    let amount_read_ident = format_ident!("__bytes_read_for_{element_ident}");
-
-    quote! {
-        let #bytes_read_before_ident = buf.remaining_bytes();
-
-        #inner
-
-        let #bytes_read_after_ident = buf.remaining_bytes();
-        let mut #amount_read_ident = #bytes_read_before_ident - #bytes_read_after_ident;
-        while #amount_read_ident % #alignment != 0 {
-            let _ = buf.get_u8().context("padding")?;
-            #amount_read_ident += 1;
-        }
-    }
-}
-
-pub(crate) fn wrap_read_with_padding_handling2(
     element_ident: &MemberIdent,
     alignment: usize,
     inner: TokenStream,
@@ -415,6 +377,7 @@ pub(crate) fn wrap_write_with_padding_handling(
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum MemberIdent {
     Named(syn::Ident),
     // Unnamed members just have an index
@@ -456,6 +419,8 @@ impl MemberIdent {
     /// Return the value of this `MemberIdent` in the form of a `syn::Ident` such that it can be
     /// used to access this field inside the containing structure or enum.  E.g. for a named
     /// variable it will be the field's name, for an unnamed variable it will be the field's index.
+    /// TODO: i think we'll use this for the write impls, so allow it to be dead for now
+    #[allow(dead_code)]
     pub fn field_name(&self) -> syn::Ident {
         match self {
             MemberIdent::Named(ident) => ident.clone(),

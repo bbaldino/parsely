@@ -1,6 +1,7 @@
 use crate::{model_types::MemberIdent, Assertion, Context, MapExpr};
 
-/// Items that are common across `ParselyRead` and `ParselyWrite` fields
+/// Items that are needed for both reading and writing a field to/from a buffer.
+#[derive(Debug)]
 pub struct ParselyCommonFieldData {
     pub ident: MemberIdent,
     /// The field's type

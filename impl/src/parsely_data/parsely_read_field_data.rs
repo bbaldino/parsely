@@ -3,14 +3,15 @@ use quote::{quote, ToTokens};
 
 use crate::{
     code_gen::gen_read::{generate_collection_read, generate_plain_read, wrap_in_optional},
-    model_types::{wrap_read_with_padding_handling2, CollectionLimit, MemberIdent},
+    model_types::{wrap_read_with_padding_handling, CollectionLimit, MemberIdent},
     ParselyReadFieldReceiver, TypeExts,
 };
 
 use super::parsely_common_field_data::ParselyCommonFieldData;
 
-/// A struct which represents all information needed for generating a `ParselyRead` implementation
-/// for a given field.
+/// A struct which represents all information needed for generating logic to read a field from a
+/// buffer.
+#[derive(Debug)]
 pub struct ParselyReadFieldData {
     /// Data common between read and write for fields
     pub(crate) common: ParselyCommonFieldData,
@@ -92,6 +93,28 @@ impl ParselyReadFieldData {
 }
 
 impl ToTokens for ParselyReadFieldData {
+    /// Given the data associated with a field, generate the code for properly reading it from a
+    /// buffer.
+    ///
+    /// The attributes set in the [`ParselyReadFieldData`] all shape the logic necessary in order to
+    /// properly parse this field.  Roughly, the processing is as follows:
+    ///
+    /// 1. Check if an 'assign_from' attribute is set.  If so, we don't read from the buffer at all and
+    ///    instead just assign the field to the result of the given expression.
+    /// 2. Check if a 'map' attribute is set.  If so, we'll read a value as a different type and then
+    ///    pass it t othe map function to arrive at the final type and assign it to the field.
+    /// 3. Check if the field is a collection.  If so, some kind of accompanying 'limit' attribute is
+    ///    required: either a 'count' attribute or a `while_pred` attribute that defines how many
+    ///    elements should be read.
+    /// 4. If none of the above are the case, do a 'plain' read where we just read the type directly
+    ///    from the buffer.
+    /// 5. If an 'assertion' attribute is present then generate code to assert on the read value using
+    ///    the given assertion function or closure.
+    /// 6. After the code to perform the read has been generated, we check if the field is an option
+    ///    type.  If so, a 'when' attribute is required.  This is an expression that determines when the
+    ///    read should actually be done.
+    /// 7. Finally, if an 'alignment' attribute is present, code is added to detect and consume any
+    ///    padding after the read.
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let mut output = TokenStream::new();
         if let Some(ref assign_expr) = self.assign_from {
@@ -99,7 +122,7 @@ impl ToTokens for ParselyReadFieldData {
                 ParselyResult::<_>::Ok(#assign_expr)
             });
         } else if let Some(ref map_expr) = self.common.map {
-            map_expr.to_read_map_tokens2(&self.common.ident, &mut output);
+            map_expr.to_read_map_tokens(&self.common.ident, &mut output);
         } else if self.common.ty.is_collection() {
             // We've ensure collection_limit is set in this case elswhere.
             let limit = self.collection_limit.as_ref().unwrap();
@@ -134,7 +157,7 @@ impl ToTokens for ParselyReadFieldData {
         };
 
         output = if let Some(alignment) = self.common.alignment {
-            wrap_read_with_padding_handling2(&self.common.ident, alignment, output)
+            wrap_read_with_padding_handling(&self.common.ident, alignment, output)
         } else {
             output
         };

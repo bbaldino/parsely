@@ -27,7 +27,7 @@ pub mod anyhow {
 }
 
 use code_gen::{gen_read::generate_parsely_read_impl, gen_write::generate_parsely_write_impl};
-use darling::{ast, FromDeriveInput, FromField, FromMeta};
+use darling::{ast, FromDeriveInput, FromField, FromMeta, FromVariant};
 use model_types::{Assertion, Context, ExprOrFunc, MapExpr, TypedFnArgList};
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
@@ -37,6 +37,8 @@ use syn_helpers::TypeExts;
 pub fn derive_parsely_read(item: TokenStream) -> std::result::Result<TokenStream, syn::Error> {
     let ast: DeriveInput = syn::parse2(item)?;
     let data = ParselyReadReceiver::from_derive_input(&ast)?;
+
+    // println!("{data:#?}");
 
     Ok(generate_parsely_read_impl(data))
 }
@@ -92,34 +94,13 @@ pub struct ParselyReadFieldReceiver {
     when: Option<syn::Expr>,
 }
 
-impl ParselyReadFieldReceiver {
-    /// Get the 'buffer type' of this field (the type that will be used when reading from or
-    /// writing to the buffer): for wrapper types (like [`Option`] or [`Vec`]), this will be the
-    /// inner type.
-    /// TODO: this will move to the data type and go away from ehre
-    pub(crate) fn buffer_type(&self) -> &syn::Type {
-        if self.ty.is_option() || self.ty.is_collection() {
-            self.ty
-                .inner_type()
-                .expect("Option or collection has an inner type")
-        } else {
-            &self.ty
-        }
-    }
-
-    /// Get the context values that need to be passed to the read or write call for this field
-    pub(crate) fn context_values(&self) -> Vec<syn::Expr> {
-        let field_name = self
-            .ident
-            .as_ref()
-            .expect("Field must have a name")
-            .to_string();
-        if let Some(ref field_context) = self.common.context {
-            field_context.expressions(&format!("Read context for field '{field_name}'"))
-        } else {
-            vec![]
-        }
-    }
+#[derive(Debug, FromVariant)]
+#[darling(attributes(parsely, parsely_read))]
+pub struct ParselyReadVariantReceiver {
+    ident: syn::Ident,
+    discriminant: Option<syn::Expr>,
+    id: syn::Expr,
+    fields: ast::Fields<ParselyReadFieldReceiver>,
 }
 
 #[derive(Debug, FromField)]
@@ -189,7 +170,9 @@ pub struct ParselyReadReceiver {
     ident: syn::Ident,
     required_context: Option<TypedFnArgList>,
     alignment: Option<usize>,
-    data: ast::Data<(), ParselyReadFieldReceiver>,
+    // Enums require a value to match on to determine which variant should be parsed
+    key: Option<syn::Expr>,
+    data: ast::Data<ParselyReadVariantReceiver, ParselyReadFieldReceiver>,
 }
 
 #[derive(Debug, FromDeriveInput)]
