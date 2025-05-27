@@ -1,7 +1,6 @@
 mod code_gen;
 pub mod error;
 mod model_types;
-pub mod parsely_data;
 pub mod parsely_read;
 pub mod parsely_write;
 mod syn_helpers;
@@ -26,10 +25,17 @@ pub mod anyhow {
     pub use anyhow::*;
 }
 
-use code_gen::{gen_read::generate_parsely_read_impl, gen_write::generate_parsely_write_impl};
+use code_gen::{
+    gen_write::generate_parsely_write_impl,
+    read::{
+        parsely_read_enum_data::ParselyReadEnumData,
+        parsely_read_struct_data::ParselyReadStructData,
+    },
+};
 use darling::{ast, FromDeriveInput, FromField, FromMeta, FromVariant};
 use model_types::{Assertion, Context, ExprOrFunc, MapExpr, TypedFnArgList};
 use proc_macro2::TokenStream;
+use quote::quote;
 use syn::DeriveInput;
 use syn_helpers::TypeExts;
 
@@ -40,7 +46,17 @@ pub fn derive_parsely_read(item: TokenStream) -> std::result::Result<TokenStream
 
     // println!("{data:#?}");
 
-    Ok(generate_parsely_read_impl(data))
+    if data.data.is_struct() {
+        let struct_data = ParselyReadStructData::try_from(data).unwrap();
+        Ok(quote! {
+            #struct_data
+        })
+    } else {
+        let enum_data = ParselyReadEnumData::try_from(data).unwrap();
+        Ok(quote! {
+            #enum_data
+        })
+    }
 }
 
 #[doc(hidden)]

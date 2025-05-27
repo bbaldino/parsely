@@ -2,11 +2,12 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
 use crate::{
-    code_gen::gen_read::{generate_collection_read, generate_plain_read, wrap_in_optional},
+    code_gen::{helpers::wrap_in_optional, parsely_common_field_data::ParselyCommonFieldData},
     model_types::{wrap_read_with_padding_handling, CollectionLimit, MemberIdent},
-    parsely_data::parsely_common_field_data::ParselyCommonFieldData,
     ParselyReadFieldReceiver, TypeExts,
 };
+
+use super::helpers::{generate_collection_read, generate_plain_read};
 
 /// A struct which represents all information needed for generating logic to read a field from a
 /// buffer.

@@ -1,28 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::{
-    model_types::CollectionLimit,
-    parsely_data::read::{
-        parsely_read_enum_data::ParselyReadEnumData,
-        parsely_read_struct_data::ParselyReadStructData,
-    },
-    ParselyReadReceiver,
-};
-
-pub fn generate_parsely_read_impl(data: ParselyReadReceiver) -> TokenStream {
-    if data.data.is_struct() {
-        let struct_data = ParselyReadStructData::try_from(data).unwrap();
-        quote! {
-            #struct_data
-        }
-    } else {
-        let enum_data = ParselyReadEnumData::try_from(data).unwrap();
-        quote! {
-            #enum_data
-        }
-    }
-}
+use crate::model_types::CollectionLimit;
 
 pub(crate) fn generate_plain_read(ty: &syn::Type, context_values: &[syn::Expr]) -> TokenStream {
     quote! {
@@ -64,16 +43,6 @@ pub(crate) fn generate_collection_read(
                     values.into_iter().collect::<ParselyResult<Vec<#ty>>>()
                 })()
             }
-        }
-    }
-}
-
-pub(crate) fn wrap_in_optional(when_expr: &syn::Expr, inner: TokenStream) -> TokenStream {
-    quote! {
-        if #when_expr {
-            Some(#inner)
-        } else {
-            None
         }
     }
 }
