@@ -5,11 +5,13 @@ use quote::{format_ident, quote, ToTokens};
 use crate::{
     anyhow, get_crate_name,
     model_types::{wrap_read_with_padding_handling, MemberIdent},
-    parsely_data::parsely_read_field_data::ParselyReadFieldData,
     ParselyReadReceiver, TypedFnArgList,
 };
 
-use super::parsely_read_variant_data::ParselyReadVariantData;
+use super::{
+    parsely_read_field_data::ParselyReadFieldData,
+    parsely_read_variant_data::ParselyReadVariantData,
+};
 
 /// A struct which represents all information needed for generating a `ParselyRead` implementation
 /// for a given struct.

@@ -3,7 +3,7 @@ use quote::quote;
 
 use crate::{
     model_types::CollectionLimit,
-    parsely_data::{
+    parsely_data::read::{
         parsely_read_enum_data::ParselyReadEnumData,
         parsely_read_struct_data::ParselyReadStructData,
     },

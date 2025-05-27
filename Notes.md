@@ -506,3 +506,78 @@ able to provide different/optimized read/write impls for different types (e.g.
 one for BitBuf and another when we know it's a Bits specifically or something)
 
 --> look into a refactoring of the read/write traits to accomplish this
+
+--> Once I cleaned up the design of BitBuf/BitBufMut/Bits/BitsMut, I found I
+didn't end up really needing this.  So although it was kinda a neat trick, it
+also added a lot of complexity (and is really verbose when you wanted to use a
+different buffer type, which was annoying) so I ended up ripping this out.
+
+### Order of operations for different attributes
+
+As of this writing, for a ParselyRead impl the following attributes are supported:
+
+* Assertion (assert on a read value)
+* Map (map a read value)
+* Alignment (consuming data after a read to reach the given alignment)
+* Context (pass values when calling a field's read method)
+* Limit (denote how many values a collection field contains)
+* Assignment (assign a field to a value instead of reading it)
+* When (denote when an optional field should be read)
+
+Some of these attributes are pretty orthogonal to the others (alignment,
+context) but others could potentially "interact" in different ways depending on
+some desired order.  For example: if 'map' and 'assertion' are present, should
+the assertion be performed on the read value before or after the map function
+was applied?  There is no right answer to that question, of course: a caller
+could want it either way.  So the question is how to implement support for
+that.  Probably the order of the attributes should be used to determine the
+order things are applied:
+
+This example should:
+
+1. Read the value
+1. Run the assertion on the 'raw' value
+1. Run the mapping function
+
+```rust
+#[derive(ParselyRead)]
+struct Foo {
+  #[parsely_read(assertion = "|v: &u8| v % 2 == 0", map = "|v: u8| v * 2")]
+  field_one: u8
+}
+```
+
+This example should:
+
+1. Read the value
+1. Run the mapping function
+1. Run the assertion on the mapped value
+
+```rust
+#[derive(ParselyRead)]
+struct Foo {
+  #[parsely_read(map = "|v: u8| v * 2", assertion = "|v: &u8| v % 2 == 0")]
+  field_one: u8
+}
+```
+
+Order-sensitive interactions of attributes:
+Assertion/Map - assertion run on raw value or mapped value
+Map/Limit - map function run on individual items or entire collection? Not sure
+both are really needed.
+
+Given the limited number of interactions, I think for now I'll do an implicit,
+hard-coded order-of-operations:
+
+1. When - In a way this has the highest precedence because it determines if
+   _any_ of the read code for this field is run at all
+1. Assignment
+1. Limit - For collection fields this determines how many times the 'core' read
+   is run.
+1. (Context - This is really orthogonal so don't think it has much effect
+   either way)
+1. Assertion - this is the first thing done after a value has been read from
+   the buffer.  It's always done on the 'raw' (un-mapped) value.
+1. Map
+1. (Alignment - this is 'outside' the scope of a field's specific read, so is
+   also pretty orthogonal)

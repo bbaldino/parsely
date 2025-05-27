@@ -4,10 +4,9 @@ use quote::{quote, ToTokens};
 use crate::{
     code_gen::gen_read::{generate_collection_read, generate_plain_read, wrap_in_optional},
     model_types::{wrap_read_with_padding_handling, CollectionLimit, MemberIdent},
+    parsely_data::parsely_common_field_data::ParselyCommonFieldData,
     ParselyReadFieldReceiver, TypeExts,
 };
-
-use super::parsely_common_field_data::ParselyCommonFieldData;
 
 /// A struct which represents all information needed for generating logic to read a field from a
 /// buffer.
