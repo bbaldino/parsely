@@ -7,7 +7,7 @@ impl<B: BitBuf> ::parsely_rs::ParselyRead<B> for Foo {
     type Ctx = ();
     fn read<T: ::parsely_rs::ByteOrder>(
         buf: &mut B,
-        _ctx: (),
+        (): (),
     ) -> ::parsely_rs::ParselyResult<Self> {
         let value = u8::read::<T>(buf, ())
             .and_then(|read_value| {
@@ -35,7 +35,7 @@ impl<B: BitBuf> ::parsely_rs::ParselyRead<B> for Foo {
 }
 impl<B: BitBufMut> ::parsely_rs::ParselyWrite<B> for Foo {
     type Ctx = ();
-    fn write<T: ByteOrder>(&self, buf: &mut B, ctx: Self::Ctx) -> ParselyResult<()> {
+    fn write<T: ByteOrder>(&self, buf: &mut B, (): Self::Ctx) -> ParselyResult<()> {
         let __value_assertion_func = |v: &u8| *v % 2 == 0;
         if !__value_assertion_func(&self.value) {
             return ::anyhow::__private::Err(

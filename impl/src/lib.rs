@@ -72,8 +72,6 @@ pub fn derive_parsely_write(item: TokenStream) -> std::result::Result<TokenStrea
     } else {
         todo!()
     }
-
-    // Ok(generate_parsely_write_impl(data))
 }
 
 #[derive(Debug, FromField, FromMeta)]

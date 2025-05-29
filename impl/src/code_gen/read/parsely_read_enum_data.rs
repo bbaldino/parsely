@@ -1,6 +1,6 @@
 use ::anyhow::anyhow;
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{quote, ToTokens};
 
 use crate::{
     anyhow, get_crate_name, model_types::MemberIdent, ParselyReadReceiver, TypedFnArgList,
@@ -71,19 +71,14 @@ impl ToTokens for ParselyReadEnumData {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let crate_name = get_crate_name();
         let enum_name = &self.ident;
-        let (context_assignments, context_types) =
+        let (context_variables, context_types) =
             if let Some(ref required_context) = self.required_context {
-                (required_context.assignments(), required_context.types())
+                (required_context.names(), required_context.types())
             } else {
                 (Vec::new(), Vec::new())
             };
 
         let match_value = &self.key;
-        let ctx_var = if context_types.is_empty() {
-            format_ident!("_ctx")
-        } else {
-            format_ident!("ctx")
-        };
 
         let match_arms = &self.variants;
         let body = quote! {
@@ -105,9 +100,7 @@ impl ToTokens for ParselyReadEnumData {
         tokens.extend(quote! {
             impl<B: BitBuf> ::#crate_name::ParselyRead<B> for #enum_name {
                 type Ctx = (#(#context_types,)*);
-                fn read<T: ::#crate_name::ByteOrder>(buf: &mut B, #ctx_var: (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
-                    #(#context_assignments)*
-
+                fn read<T: ::#crate_name::ByteOrder>(buf: &mut B, (#(#context_variables,)*): (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
                     #body
                 }
             }

@@ -7,7 +7,7 @@ impl<B: BitBuf> ::parsely_rs::ParselyRead<B> for Foo {
     type Ctx = ();
     fn read<T: ::parsely_rs::ByteOrder>(
         buf: &mut B,
-        _ctx: (),
+        (): (),
     ) -> ::parsely_rs::ParselyResult<Self> {
         let __bytes_read_before_Foo_read = buf.remaining_bytes();
         let one = u8::read::<T>(buf, ()).with_context(|| "Reading field 'one'")?;
@@ -19,7 +19,7 @@ impl<B: BitBuf> ::parsely_rs::ParselyRead<B> for Foo {
 }
 impl<B: BitBufMut> ::parsely_rs::ParselyWrite<B> for Foo {
     type Ctx = ();
-    fn write<T: ByteOrder>(&self, buf: &mut B, ctx: Self::Ctx) -> ParselyResult<()> {
+    fn write<T: ByteOrder>(&self, buf: &mut B, (): Self::Ctx) -> ParselyResult<()> {
         let __bytes_written_before_Foo_write = buf.remaining_mut_bytes();
         u8::write::<T>(&self.one, buf, ())
             .with_context(|| ::alloc::__export::must_use({

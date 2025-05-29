@@ -49,9 +49,9 @@ impl ToTokens for ParselyWriteStructData {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let crate_name = get_crate_name();
         let struct_name = &self.ident;
-        let (context_assignments, context_types) =
+        let (context_variables, context_types) =
             if let Some(ref required_context) = self.required_context {
-                (required_context.assignments(), required_context.types())
+                (required_context.names(), required_context.types())
             } else {
                 (vec![], vec![])
             };
@@ -88,9 +88,8 @@ impl ToTokens for ParselyWriteStructData {
                 fn write<T: ByteOrder>(
                     &self,
                     buf: &mut B,
-                    ctx: Self::Ctx,
+                    (#(#context_variables,)*): Self::Ctx,
                 ) -> ParselyResult<()> {
-                    #(#context_assignments)*
 
                     #body
 

@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{quote, ToTokens};
 
 use crate::{get_crate_name, model_types::MemberIdent, ParselyReadReceiver, TypedFnArgList};
 
@@ -52,9 +52,9 @@ impl ToTokens for ParselyReadStructData {
         let struct_name = &self.ident;
         // Extract out the assignment expressions we'll do to assign the values of the context tuple
         // to the configured variable names, as well as the types of the context tuple.
-        let (context_assignments, context_types) =
+        let (context_variables, context_types) =
             if let Some(ref required_context) = self.required_context {
-                (required_context.assignments(), required_context.types())
+                (required_context.names(), required_context.types())
             } else {
                 (Vec::new(), Vec::new())
             };
@@ -73,11 +73,6 @@ impl ToTokens for ParselyReadStructData {
         } else {
             field_reads
         };
-        let ctx_var = if context_types.is_empty() {
-            format_ident!("_ctx")
-        } else {
-            format_ident!("ctx")
-        };
 
         let field_names = fields
             .iter()
@@ -89,9 +84,7 @@ impl ToTokens for ParselyReadStructData {
             tokens.extend(quote! {
                 impl<B: BitBuf> ::#crate_name::ParselyRead<B> for #struct_name {
                     type Ctx = (#(#context_types,)*);
-                    fn read<T: ::#crate_name::ByteOrder>(buf: &mut B, #ctx_var: (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
-                        #(#context_assignments)*
-
+                    fn read<T: ::#crate_name::ByteOrder>(buf: &mut B, (#(#context_variables,)*): (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
                         #body
 
                         Ok(Self { #(#field_names,)* })
@@ -102,9 +95,7 @@ impl ToTokens for ParselyReadStructData {
             tokens.extend(quote! {
                 impl<B: BitBuf> ::#crate_name::ParselyRead<B> for #struct_name {
                     type Ctx = (#(#context_types,)*);
-                    fn read<T: ::#crate_name::ByteOrder>(buf: &mut B, #ctx_var: (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
-                        #(#context_assignments)*
-
+                    fn read<T: ::#crate_name::ByteOrder>(buf: &mut B, (#(#context_variables,)*): (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
                         #body
 
                         Ok(Self(#(#field_names,)* ))

@@ -8,7 +8,7 @@ impl<B: BitBuf> ::parsely_rs::ParselyRead<B> for Foo {
     type Ctx = ();
     fn read<T: ::parsely_rs::ByteOrder>(
         buf: &mut B,
-        _ctx: (),
+        (): (),
     ) -> ::parsely_rs::ParselyResult<Self> {
         let value = {
             let original_value = ::parsely_rs::ParselyRead::read::<T>(buf, ())
@@ -33,7 +33,7 @@ impl<B: BitBuf> ::parsely_rs::ParselyRead<B> for Foo {
 }
 impl<B: BitBufMut> ::parsely_rs::ParselyWrite<B> for Foo {
     type Ctx = ();
-    fn write<T: ByteOrder>(&self, buf: &mut B, ctx: Self::Ctx) -> ParselyResult<()> {
+    fn write<T: ByteOrder>(&self, buf: &mut B, (): Self::Ctx) -> ParselyResult<()> {
         {
             let mapped_value = (|v: &str| { v.parse::<u8>() })(&self.value);
             let result = <_ as IntoWritableParselyResult<

@@ -23,21 +23,6 @@ impl TypedFnArgList {
     pub(crate) fn names(&self) -> Vec<&syn::Ident> {
         self.0.iter().map(|t| t.name()).collect()
     }
-
-    // TODO: this is context-specific, but now this type is more generic.  move it?
-    pub(crate) fn assignments(&self) -> Vec<Local> {
-        self.0
-            .iter()
-            .enumerate()
-            .map(|(idx, fn_arg)| {
-                let idx: syn::Index = idx.into();
-                syn::parse2::<Local>(quote! {
-                    let #fn_arg = ctx.#idx;
-                })
-                .unwrap()
-            })
-            .collect::<Vec<_>>()
-    }
 }
 
 impl FromMeta for TypedFnArgList {
