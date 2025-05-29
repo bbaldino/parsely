@@ -2,13 +2,11 @@ use anyhow::anyhow;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 
-use crate::{
-    get_crate_name,
-    model_types::{wrap_read_with_padding_handling, MemberIdent},
-    ParselyReadReceiver, TypedFnArgList,
-};
+use crate::{get_crate_name, model_types::MemberIdent, ParselyReadReceiver, TypedFnArgList};
 
-use super::parsely_read_field_data::ParselyReadFieldData;
+use super::{
+    helpers::wrap_read_with_padding_handling, parsely_read_field_data::ParselyReadFieldData,
+};
 
 /// A struct which represents all information needed for generating a `ParselyRead` implementation
 /// for a given struct.

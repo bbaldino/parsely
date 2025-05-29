@@ -3,11 +3,13 @@ use quote::{quote, ToTokens};
 
 use crate::{
     code_gen::{helpers::wrap_in_optional, parsely_common_field_data::ParselyCommonFieldData},
-    model_types::{wrap_read_with_padding_handling, CollectionLimit, MemberIdent},
+    model_types::{CollectionLimit, MemberIdent},
     ParselyReadFieldReceiver, TypeExts,
 };
 
-use super::helpers::{generate_collection_read, generate_plain_read};
+use super::helpers::{
+    generate_collection_read, generate_plain_read, wrap_read_with_padding_handling,
+};
 
 /// A struct which represents all information needed for generating logic to read a field from a
 /// buffer.
@@ -64,32 +66,6 @@ impl ParselyReadFieldData {
             when,
         }
     }
-
-    /// Get the 'buffer type' of this field (the type that will be used when reading from or
-    /// writing to the buffer): for wrapper types (like [`Option`] or [`Vec`]), this will be the
-    /// inner type.
-    pub(crate) fn buffer_type(&self) -> &syn::Type {
-        if self.common.ty.is_option() || self.common.ty.is_collection() {
-            self.common
-                .ty
-                .inner_type()
-                .expect("Option or collection has an inner type")
-        } else {
-            &self.common.ty
-        }
-    }
-
-    /// Get the context values that need to be passed to the read or write call for this field
-    pub(crate) fn context_values(&self) -> Vec<syn::Expr> {
-        if let Some(ref field_context) = self.common.context {
-            field_context.expressions(&format!(
-                "Read context for field '{}'",
-                self.common.ident.as_friendly_string()
-            ))
-        } else {
-            vec![]
-        }
-    }
 }
 
 impl ToTokens for ParselyReadFieldData {
@@ -126,16 +102,16 @@ impl ToTokens for ParselyReadFieldData {
         } else if self.common.ty.is_collection() {
             // We've ensure collection_limit is set in this case elswhere.
             let limit = self.collection_limit.as_ref().unwrap();
-            let read_type = self.buffer_type();
+            let read_type = self.common.buffer_type();
             output.extend(generate_collection_read(
                 limit,
                 read_type,
-                &self.context_values(),
+                &self.common.context_values(),
             ));
         } else {
             output.extend(generate_plain_read(
-                self.buffer_type(),
-                &self.context_values(),
+                self.common.buffer_type(),
+                &self.common.context_values(),
             ));
         }
 

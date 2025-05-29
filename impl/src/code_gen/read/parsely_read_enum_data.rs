@@ -3,13 +3,11 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 
 use crate::{
-    anyhow, get_crate_name,
-    model_types::{wrap_read_with_padding_handling, MemberIdent},
-    ParselyReadReceiver, TypedFnArgList,
+    anyhow, get_crate_name, model_types::MemberIdent, ParselyReadReceiver, TypedFnArgList,
 };
 
 use super::{
-    parsely_read_field_data::ParselyReadFieldData,
+    helpers::wrap_read_with_padding_handling, parsely_read_field_data::ParselyReadFieldData,
     parsely_read_variant_data::ParselyReadVariantData,
 };
 

@@ -26,11 +26,11 @@ pub mod anyhow {
 }
 
 use code_gen::{
-    gen_write::generate_parsely_write_impl,
     read::{
         parsely_read_enum_data::ParselyReadEnumData,
         parsely_read_struct_data::ParselyReadStructData,
     },
+    write::parsely_write_struct_data::ParselyWriteStructData,
 };
 use darling::{ast, FromDeriveInput, FromField, FromMeta, FromVariant};
 use model_types::{Assertion, Context, ExprOrFunc, MapExpr, TypedFnArgList};
@@ -62,9 +62,18 @@ pub fn derive_parsely_read(item: TokenStream) -> std::result::Result<TokenStream
 #[doc(hidden)]
 pub fn derive_parsely_write(item: TokenStream) -> std::result::Result<TokenStream, syn::Error> {
     let ast: DeriveInput = syn::parse2(item)?;
-    let data = ParselyWriteData::from_derive_input(&ast)?;
+    let data = ParselyWriteReceiver::from_derive_input(&ast)?;
 
-    Ok(generate_parsely_write_impl(data))
+    if data.data.is_struct() {
+        let struct_data = ParselyWriteStructData::try_from(data).unwrap();
+        Ok(quote! {
+            #struct_data
+        })
+    } else {
+        todo!()
+    }
+
+    // Ok(generate_parsely_write_impl(data))
 }
 
 #[derive(Debug, FromField, FromMeta)]
@@ -121,7 +130,7 @@ pub struct ParselyReadVariantReceiver {
 
 #[derive(Debug, FromField)]
 #[darling(attributes(parsely, parsely_write))]
-pub struct ParselyWriteFieldData {
+pub struct ParselyWriteFieldReceiver {
     ident: Option<syn::Ident>,
 
     ty: syn::Type,
@@ -140,46 +149,6 @@ pub struct ParselyWriteFieldData {
     sync_with: Context,
 }
 
-impl ParselyWriteFieldData {
-    /// Get the 'buffer type' of this field (the type that will be used when reading from or
-    /// writing to the buffer): for wrapper types (like [`Option`] or [`Vec`]), this will be the
-    /// inner type.
-    pub(crate) fn buffer_type(&self) -> &syn::Type {
-        if self.ty.is_option() || self.ty.is_collection() {
-            self.ty
-                .inner_type()
-                .expect("Option or collection has an inner type")
-        } else {
-            &self.ty
-        }
-    }
-
-    /// Get the context values that need to be passed to the read or write call for this field
-    pub(crate) fn context_values(&self) -> Vec<syn::Expr> {
-        let field_name = self
-            .ident
-            .as_ref()
-            .expect("Field must have a name")
-            .to_string();
-        if let Some(ref field_context) = self.common.context {
-            field_context.expressions(&format!("Write context for field '{field_name}'"))
-        } else {
-            vec![]
-        }
-    }
-
-    /// Get the context values that need to be passed to the read or write call for this field
-    pub(crate) fn sync_with_expressions(&self) -> Vec<syn::Expr> {
-        let field_name = self
-            .ident
-            .as_ref()
-            .expect("Field must have a name")
-            .to_string();
-        self.sync_with
-            .expressions(&format!("Sync context for field '{field_name}'"))
-    }
-}
-
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(parsely, parsely_read), supports(struct_any, enum_any))]
 pub struct ParselyReadReceiver {
@@ -193,12 +162,12 @@ pub struct ParselyReadReceiver {
 
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(parsely, parsely_write), supports(struct_any, enum_any))]
-pub struct ParselyWriteData {
+pub struct ParselyWriteReceiver {
     ident: syn::Ident,
     required_context: Option<TypedFnArgList>,
     sync_args: Option<TypedFnArgList>,
     alignment: Option<usize>,
-    data: ast::Data<(), ParselyWriteFieldData>,
+    data: ast::Data<(), ParselyWriteFieldReceiver>,
 }
 
 pub(crate) fn get_crate_name() -> syn::Ident {
