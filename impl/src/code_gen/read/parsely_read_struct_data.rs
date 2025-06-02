@@ -2,7 +2,8 @@ use anyhow::anyhow;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
-use crate::{get_crate_name, model_types::MemberIdent, ParselyReadReceiver, TypedFnArgList};
+use crate::syn_helpers::MemberExts;
+use crate::{get_crate_name, ParselyReadReceiver, TypedFnArgList};
 
 use super::{
     helpers::wrap_read_with_padding_handling, parsely_read_field_data::ParselyReadFieldData,
@@ -13,7 +14,7 @@ use super::{
 pub(crate) struct ParselyReadStructData {
     pub(crate) ident: syn::Ident,
     pub(crate) style: darling::ast::Style,
-    pub(crate) required_context: Option<TypedFnArgList>,
+    pub(crate) required_context: TypedFnArgList,
     pub(crate) alignment: Option<usize>,
     pub(crate) fields: Vec<ParselyReadFieldData>,
 }
@@ -32,7 +33,7 @@ impl TryFrom<ParselyReadReceiver> for ParselyReadStructData {
             .enumerate()
             .map(|(field_index, field)| {
                 let ident =
-                    MemberIdent::from_ident_or_index(field.ident.as_ref(), field_index as u32);
+                    syn::Member::from_ident_or_index(field.ident.as_ref(), field_index as u32);
                 ParselyReadFieldData::from_receiver(ident, field)
             })
             .collect::<Vec<_>>();
@@ -53,11 +54,7 @@ impl ToTokens for ParselyReadStructData {
         // Extract out the assignment expressions we'll do to assign the values of the context tuple
         // to the configured variable names, as well as the types of the context tuple.
         let (context_variables, context_types) =
-            if let Some(ref required_context) = self.required_context {
-                (required_context.names(), required_context.types())
-            } else {
-                (Vec::new(), Vec::new())
-            };
+            (self.required_context.names(), self.required_context.types());
 
         let fields = &self.fields;
         let field_reads = quote! {
@@ -66,7 +63,7 @@ impl ToTokens for ParselyReadStructData {
 
         let body = if let Some(alignment) = self.alignment {
             wrap_read_with_padding_handling(
-                &MemberIdent::from_ident(&self.ident),
+                &syn::Member::Named(self.ident.clone()),
                 alignment,
                 field_reads,
             )

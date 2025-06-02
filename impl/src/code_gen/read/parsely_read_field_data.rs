@@ -3,7 +3,8 @@ use quote::{quote, ToTokens};
 
 use crate::{
     code_gen::{helpers::wrap_in_optional, parsely_common_field_data::ParselyCommonFieldData},
-    model_types::{CollectionLimit, MemberIdent},
+    model_types::CollectionLimit,
+    syn_helpers::MemberExts,
     ParselyReadFieldReceiver, TypeExts,
 };
 
@@ -28,7 +29,7 @@ pub struct ParselyReadFieldData {
 
 impl ParselyReadFieldData {
     pub(crate) fn from_receiver(
-        field_ident: MemberIdent,
+        field_ident: syn::Member,
         receiver: ParselyReadFieldReceiver,
     ) -> Self {
         let collection_limit = if receiver.ty.is_collection() {

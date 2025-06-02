@@ -1,9 +1,12 @@
-use crate::{model_types::MemberIdent, syn_helpers::TypeExts, Assertion, Context, MapExpr};
+use crate::{
+    syn_helpers::{MemberExts, TypeExts},
+    Assertion, Context, MapExpr,
+};
 
 /// Items that are needed for both reading and writing a field to/from a buffer.
 #[derive(Debug)]
 pub(crate) struct ParselyCommonFieldData {
-    pub(crate) ident: MemberIdent,
+    pub(crate) ident: syn::Member,
     /// The field's type
     pub(crate) ty: syn::Type,
 
@@ -37,7 +40,7 @@ impl ParselyCommonFieldData {
         if let Some(ref field_context) = self.context {
             field_context.expressions(&format!(
                 "Read context for field '{}'",
-                self.ident.as_friendly_string()
+                self.ident.as_friendly_string(),
             ))
         } else {
             vec![]

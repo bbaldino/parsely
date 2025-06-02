@@ -3,7 +3,7 @@ pub mod error;
 mod model_types;
 pub mod parsely_read;
 pub mod parsely_write;
-mod syn_helpers;
+pub(crate) mod syn_helpers;
 
 pub use bits_io::{
     buf::bit_buf::BitBuf,
@@ -30,7 +30,10 @@ use code_gen::{
         parsely_read_enum_data::ParselyReadEnumData,
         parsely_read_struct_data::ParselyReadStructData,
     },
-    write::parsely_write_struct_data::ParselyWriteStructData,
+    write::{
+        parsely_write_enum_data::ParselyWriteEnumData,
+        parsely_write_struct_data::ParselyWriteStructData,
+    },
 };
 use darling::{ast, FromDeriveInput, FromField, FromMeta, FromVariant};
 use model_types::{Assertion, Context, ExprOrFunc, MapExpr, TypedFnArgList};
@@ -70,7 +73,10 @@ pub fn derive_parsely_write(item: TokenStream) -> std::result::Result<TokenStrea
             #struct_data
         })
     } else {
-        todo!()
+        let enum_data = ParselyWriteEnumData::try_from(data).unwrap();
+        Ok(quote! {
+            #enum_data
+        })
     }
 }
 
@@ -147,11 +153,20 @@ pub struct ParselyWriteFieldReceiver {
     sync_with: Context,
 }
 
+#[derive(Debug, FromVariant)]
+#[darling(attributes(parsely, parsely_write))]
+pub struct ParselyWriteVariantReceiver {
+    ident: syn::Ident,
+    discriminant: Option<syn::Expr>,
+    fields: ast::Fields<ParselyWriteFieldReceiver>,
+}
+
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(parsely, parsely_read), supports(struct_any, enum_any))]
 pub struct ParselyReadReceiver {
     ident: syn::Ident,
-    required_context: Option<TypedFnArgList>,
+    #[darling(default)]
+    required_context: TypedFnArgList,
     alignment: Option<usize>,
     // Enums require a value to match on to determine which variant should be parsed
     key: Option<syn::Expr>,
@@ -162,10 +177,12 @@ pub struct ParselyReadReceiver {
 #[darling(attributes(parsely, parsely_write), supports(struct_any, enum_any))]
 pub struct ParselyWriteReceiver {
     ident: syn::Ident,
-    required_context: Option<TypedFnArgList>,
-    sync_args: Option<TypedFnArgList>,
+    #[darling(default)]
+    required_context: TypedFnArgList,
+    #[darling(default)]
+    sync_args: TypedFnArgList,
     alignment: Option<usize>,
-    data: ast::Data<(), ParselyWriteFieldReceiver>,
+    data: ast::Data<ParselyWriteVariantReceiver, ParselyWriteFieldReceiver>,
 }
 
 pub(crate) fn get_crate_name() -> syn::Ident {

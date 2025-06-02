@@ -3,20 +3,19 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
 use crate::{
-    get_crate_name,
-    model_types::{MemberIdent, TypedFnArgList},
-    ParselyWriteReceiver,
+    get_crate_name, model_types::TypedFnArgList, syn_helpers::MemberExts, ParselyWriteReceiver,
 };
 
 use super::{
-    helpers::wrap_write_with_padding_handling, parsely_write_field_data::ParselyWriteFieldData,
+    helpers::{wrap_write_with_padding_handling, ParentType},
+    parsely_write_field_data::ParselyWriteFieldData,
 };
 
 pub(crate) struct ParselyWriteStructData {
     pub(crate) ident: syn::Ident,
-    pub(crate) required_context: Option<TypedFnArgList>,
+    pub(crate) required_context: TypedFnArgList,
     pub(crate) alignment: Option<usize>,
-    pub(crate) sync_args: Option<TypedFnArgList>,
+    pub(crate) sync_args: TypedFnArgList,
     pub(crate) fields: Vec<ParselyWriteFieldData>,
 }
 
@@ -30,8 +29,8 @@ impl TryFrom<ParselyWriteReceiver> for ParselyWriteStructData {
             .enumerate()
             .map(|(field_index, field)| {
                 let ident =
-                    MemberIdent::from_ident_or_index(field.ident.as_ref(), field_index as u32);
-                ParselyWriteFieldData::from_receiver(ident, field)
+                    syn::Member::from_ident_or_index(field.ident.as_ref(), field_index as u32);
+                ParselyWriteFieldData::from_receiver(ident, ParentType::Struct, field)
             })
             .collect::<Vec<_>>();
 
@@ -50,11 +49,7 @@ impl ToTokens for ParselyWriteStructData {
         let crate_name = get_crate_name();
         let struct_name = &self.ident;
         let (context_variables, context_types) =
-            if let Some(ref required_context) = self.required_context {
-                (required_context.names(), required_context.types())
-            } else {
-                (vec![], vec![])
-            };
+            (self.required_context.names(), self.required_context.types());
 
         let fields = &self.fields;
         let field_writes = quote! {
@@ -66,15 +61,12 @@ impl ToTokens for ParselyWriteStructData {
             .map(|f| f.to_sync_call_tokens())
             .collect::<Vec<_>>();
 
-        let (sync_args_variables, sync_args_types) = if let Some(ref sync_args) = self.sync_args {
-            (sync_args.names(), sync_args.types())
-        } else {
-            (vec![], vec![])
-        };
+        let (sync_args_variables, sync_args_types) =
+            (self.sync_args.names(), self.sync_args.types());
 
         let body = if let Some(alignment) = self.alignment {
             wrap_write_with_padding_handling(
-                &MemberIdent::from_ident(&self.ident),
+                &syn::Member::Named(self.ident.clone()),
                 alignment,
                 field_writes,
             )
@@ -97,7 +89,7 @@ impl ToTokens for ParselyWriteStructData {
                 }
             }
 
-            impl StateSync for #struct_name {
+            impl ::#crate_name::StateSync for #struct_name {
                 type SyncCtx = (#(#sync_args_types,)*);
                 fn sync(&mut self, (#(#sync_args_variables,)*): (#(#sync_args_types,)*)) -> ParselyResult<()> {
                     #(#sync_field_calls)*

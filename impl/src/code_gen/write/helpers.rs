@@ -1,10 +1,10 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use crate::model_types::MemberIdent;
+use crate::syn_helpers::MemberExts;
 
 pub(crate) fn wrap_write_with_padding_handling(
-    element_ident: &MemberIdent,
+    element_ident: &syn::Member,
     alignment: usize,
     inner: TokenStream,
 ) -> TokenStream {
@@ -22,4 +22,10 @@ pub(crate) fn wrap_write_with_padding_handling(
             buf.put_u8(0).context("adding padding")?;
         }
     }
+}
+
+#[derive(Debug)]
+pub(crate) enum ParentType {
+    Struct,
+    Enum,
 }

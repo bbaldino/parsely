@@ -1,8 +1,8 @@
-use crate::model_types::MemberIdent;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
 use super::parsely_read_field_data::ParselyReadFieldData;
+use crate::syn_helpers::MemberExts;
 
 #[derive(Debug)]
 pub(crate) struct ParselyReadVariantData {
@@ -14,10 +14,11 @@ pub(crate) struct ParselyReadVariantData {
 }
 
 impl ParselyReadVariantData {
+    /// Returns true if this variant contains named fields, false otherwise
     fn named_fields(&self) -> bool {
         self.fields
             .iter()
-            .any(|f| matches!(f.common.ident, MemberIdent::Named(_)))
+            .any(|f| matches!(f.common.ident, syn::Member::Named(_)))
     }
 }
 
@@ -43,6 +44,7 @@ impl ToTokens for ParselyReadVariantData {
             .collect::<Vec<_>>();
         let enum_name = &self.enum_name;
         let variant_name = &self.ident;
+        // TODO: don't think we're handling discriminant correctly here
         if self.fields.is_empty() {
             tokens.extend(quote! {
                 #arm_expr => {

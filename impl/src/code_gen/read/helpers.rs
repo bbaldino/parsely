@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use crate::model_types::{CollectionLimit, MemberIdent};
+use crate::{model_types::CollectionLimit, syn_helpers::MemberExts};
 
 pub(crate) fn generate_plain_read(ty: &syn::Type, context_values: &[syn::Expr]) -> TokenStream {
     quote! {
@@ -48,7 +48,7 @@ pub(crate) fn generate_collection_read(
 }
 
 pub(crate) fn wrap_read_with_padding_handling(
-    element_ident: &MemberIdent,
+    element_ident: &syn::Member,
     alignment: usize,
     inner: TokenStream,
 ) -> TokenStream {

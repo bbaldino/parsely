@@ -1,6 +1,6 @@
 use parsely_rs::*;
 
-#[derive(Debug, ParselyRead)]
+#[derive(Debug, ParselyRead, ParselyWrite)]
 #[parsely_read(key = "buf.get_u8().unwrap()")]
 enum Foo {
     #[parsely_read(id = 1)]
@@ -30,4 +30,9 @@ fn main() {
     assert!(matches!(two, Foo::Two(1)));
     let three = Foo::read::<NetworkOrder>(&mut bits, ()).expect("three");
     assert!(matches!(three, Foo::Three { bar: 1, baz: 42 }));
+
+    // TODO: write test: need to fix enum writer to always write tag
+    let mut bits_mut = BitsMut::new();
+    one.write::<NetworkOrder>(&mut bits_mut, ())
+        .expect("successful write one");
 }

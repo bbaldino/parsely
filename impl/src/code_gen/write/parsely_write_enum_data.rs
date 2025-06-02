@@ -1,32 +1,29 @@
-use ::anyhow::anyhow;
+use anyhow::anyhow;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
-use crate::{anyhow, get_crate_name, syn_helpers::MemberExts, ParselyReadReceiver, TypedFnArgList};
-
-use super::{
-    helpers::wrap_read_with_padding_handling, parsely_read_field_data::ParselyReadFieldData,
-    parsely_read_variant_data::ParselyReadVariantData,
+use crate::{
+    get_crate_name, model_types::TypedFnArgList, syn_helpers::MemberExts, ParselyWriteReceiver,
 };
 
-/// A struct which represents all information needed for generating a `ParselyRead` implementation
-/// for a given struct.
-#[derive(Debug)]
-pub(crate) struct ParselyReadEnumData {
+use super::{
+    helpers::{wrap_write_with_padding_handling, ParentType},
+    parsely_write_field_data::ParselyWriteFieldData,
+    parsely_write_variant_data::ParselyWriteVariantData,
+};
+
+pub(crate) struct ParselyWriteEnumData {
     pub(crate) ident: syn::Ident,
     pub(crate) required_context: TypedFnArgList,
     pub(crate) alignment: Option<usize>,
-    pub(crate) key: syn::Expr,
-    pub(crate) variants: Vec<ParselyReadVariantData>,
+    pub(crate) sync_args: TypedFnArgList,
+    pub(crate) variants: Vec<ParselyWriteVariantData>,
 }
 
-impl TryFrom<ParselyReadReceiver> for ParselyReadEnumData {
+impl TryFrom<ParselyWriteReceiver> for ParselyWriteEnumData {
     type Error = anyhow::Error;
 
-    fn try_from(value: ParselyReadReceiver) -> Result<Self, Self::Error> {
-        let key = value
-            .key
-            .ok_or(anyhow!("'key' attribute is required on enums"))?;
+    fn try_from(value: ParselyWriteReceiver) -> Result<Self, Self::Error> {
         let variants = value
             .data
             .take_enum()
@@ -42,48 +39,44 @@ impl TryFrom<ParselyReadReceiver> for ParselyReadEnumData {
                             field.ident.as_ref(),
                             field_index as u32,
                         );
-                        ParselyReadFieldData::from_receiver(ident, field)
+                        ParselyWriteFieldData::from_receiver(ident, ParentType::Enum, field)
                     })
                     .collect::<Vec<_>>();
-                ParselyReadVariantData {
+                ParselyWriteVariantData {
                     enum_name: value.ident.clone(),
                     ident: v.ident,
-                    id: v.id,
                     discriminant: v.discriminant,
                     fields: data_fields,
                 }
             })
             .collect::<Vec<_>>();
-
-        Ok(ParselyReadEnumData {
+        Ok(ParselyWriteEnumData {
             ident: value.ident,
-            key,
             required_context: value.required_context,
             alignment: value.alignment,
+            sync_args: value.sync_args,
             variants,
         })
     }
 }
 
-impl ToTokens for ParselyReadEnumData {
+impl ToTokens for ParselyWriteEnumData {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let crate_name = get_crate_name();
         let enum_name = &self.ident;
         let (context_variables, context_types) =
             (self.required_context.names(), self.required_context.types());
-
-        let match_value = &self.key;
-
         let match_arms = &self.variants;
+
         let body = quote! {
-            match #match_value {
+            match self {
                 #(#match_arms)*
-                _ => ParselyResult::<_>::Err(anyhow!("No arms matched value")),
+                _ => ParselyResult::<()>::Err(anyhow!("No arms matched self"))?,
             }
         };
 
         let body = if let Some(alignment) = self.alignment {
-            wrap_read_with_padding_handling(
+            wrap_write_with_padding_handling(
                 &syn::Member::Named(self.ident.clone()),
                 alignment,
                 body,
@@ -92,14 +85,25 @@ impl ToTokens for ParselyReadEnumData {
             body
         };
 
-        // TODO: should the enum id be able to be read from the buffer?  we could have it support
-        // being an expr that returns a result or not, like other things.  so it could be
-        // "buf.get_u8()"
+        let (sync_args_variables, sync_args_types) =
+            (self.sync_args.names(), self.sync_args.types());
+
+        // TODO: need to think about what the sync impl for an enum should look like and finish
+        // that
         tokens.extend(quote! {
-            impl<B: BitBuf> ::#crate_name::ParselyRead<B> for #enum_name {
+            impl<B: BitBufMut> ::#crate_name::ParselyWrite<B> for #enum_name {
                 type Ctx = (#(#context_types,)*);
-                fn read<T: ::#crate_name::ByteOrder>(buf: &mut B, (#(#context_variables,)*): (#(#context_types,)*)) -> ::#crate_name::ParselyResult<Self> {
+                fn write<T: ByteOrder>(&self, buf: &mut B, (#(#context_variables,)*): Self::Ctx,) -> ParselyResult<()> {
                     #body
+
+                    Ok(())
+                }
+            }
+
+            impl ::#crate_name::StateSync for #enum_name {
+                type SyncCtx = (#(#sync_args_types,)*);
+                fn sync(&mut self, (#(#sync_args_variables,)*): (#(#sync_args_types,)*)) -> ParselyResult<()> {
+                    Ok(())
                 }
             }
         });

@@ -62,7 +62,7 @@ impl<B: BitBufMut> ::parsely_rs::ParselyWrite<B> for Foo {
         Ok(())
     }
 }
-impl StateSync for Foo {
+impl ::parsely_rs::StateSync for Foo {
     type SyncCtx = ();
     fn sync(&mut self, (): ()) -> ParselyResult<()> {
         self.value
