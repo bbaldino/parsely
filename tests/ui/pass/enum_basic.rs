@@ -1,13 +1,13 @@
 use parsely_rs::*;
 
 #[derive(Debug, ParselyRead, ParselyWrite)]
-#[parsely_read(key = "buf.get_u8().unwrap()")]
+#[parsely(key_type = "u8")]
 enum Foo {
-    #[parsely_read(id = 1)]
+    #[parsely(id = 1)]
     One,
-    #[parsely_read(id = 2)]
+    #[parsely(id = 2)]
     Two(u8),
-    #[parsely_read(id = 3)]
+    #[parsely(id = 3)]
     Three { bar: u8, baz: u16 },
 }
 

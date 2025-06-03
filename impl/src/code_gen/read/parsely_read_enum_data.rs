@@ -16,7 +16,7 @@ pub(crate) struct ParselyReadEnumData {
     pub(crate) ident: syn::Ident,
     pub(crate) required_context: TypedFnArgList,
     pub(crate) alignment: Option<usize>,
-    pub(crate) key: syn::Expr,
+    pub(crate) key_type: syn::Type,
     pub(crate) variants: Vec<ParselyReadVariantData>,
 }
 
@@ -24,8 +24,8 @@ impl TryFrom<ParselyReadReceiver> for ParselyReadEnumData {
     type Error = anyhow::Error;
 
     fn try_from(value: ParselyReadReceiver) -> Result<Self, Self::Error> {
-        let key = value
-            .key
+        let key_type = value
+            .key_type
             .ok_or(anyhow!("'key' attribute is required on enums"))?;
         let variants = value
             .data
@@ -57,7 +57,7 @@ impl TryFrom<ParselyReadReceiver> for ParselyReadEnumData {
 
         Ok(ParselyReadEnumData {
             ident: value.ident,
-            key,
+            key_type,
             required_context: value.required_context,
             alignment: value.alignment,
             variants,
@@ -69,14 +69,16 @@ impl ToTokens for ParselyReadEnumData {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let crate_name = get_crate_name();
         let enum_name = &self.ident;
+        let enum_name_string = enum_name.to_string();
         let (context_variables, context_types) =
             (self.required_context.names(), self.required_context.types());
 
-        let match_value = &self.key;
+        let match_type = &self.key_type;
 
         let match_arms = &self.variants;
         let body = quote! {
-            match #match_value {
+            let match_value = <#match_type as ::#crate_name::ParselyRead<_>>::read::<T>(buf, ()).with_context(|| format!("Tag for enum '{}'", #enum_name_string))?;
+            match match_value {
                 #(#match_arms)*
                 _ => ParselyResult::<_>::Err(anyhow!("No arms matched value")),
             }

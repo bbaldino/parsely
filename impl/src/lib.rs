@@ -158,6 +158,7 @@ pub struct ParselyWriteFieldReceiver {
 pub struct ParselyWriteVariantReceiver {
     ident: syn::Ident,
     discriminant: Option<syn::Expr>,
+    id: syn::Expr,
     fields: ast::Fields<ParselyWriteFieldReceiver>,
 }
 
@@ -168,8 +169,8 @@ pub struct ParselyReadReceiver {
     #[darling(default)]
     required_context: TypedFnArgList,
     alignment: Option<usize>,
-    // Enums require a value to match on to determine which variant should be parsed
-    key: Option<syn::Expr>,
+    // Enums require a type to denote the tag type that determines which variant will be read
+    key_type: Option<syn::Type>,
     data: ast::Data<ParselyReadVariantReceiver, ParselyReadFieldReceiver>,
 }
 
@@ -182,6 +183,8 @@ pub struct ParselyWriteReceiver {
     #[darling(default)]
     sync_args: TypedFnArgList,
     alignment: Option<usize>,
+    // Enums require a type to denote the tag type to be written to denote the variant
+    key_type: Option<syn::Type>,
     data: ast::Data<ParselyWriteVariantReceiver, ParselyWriteFieldReceiver>,
 }
 

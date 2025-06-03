@@ -24,6 +24,9 @@ impl TryFrom<ParselyWriteReceiver> for ParselyWriteEnumData {
     type Error = anyhow::Error;
 
     fn try_from(value: ParselyWriteReceiver) -> Result<Self, Self::Error> {
+        let key_type = value
+            .key_type
+            .ok_or(anyhow!("'key' attribute is required on enums"))?;
         let variants = value
             .data
             .take_enum()
@@ -46,6 +49,8 @@ impl TryFrom<ParselyWriteReceiver> for ParselyWriteEnumData {
                     enum_name: value.ident.clone(),
                     ident: v.ident,
                     discriminant: v.discriminant,
+                    id: v.id,
+                    key_type: key_type.clone(),
                     fields: data_fields,
                 }
             })
