@@ -23,6 +23,7 @@ fn main() {
             3, 1, 0, 42,
         ]
     );
+    let bits_clone = bits.clone();
 
     let one = Foo::read::<NetworkOrder>(&mut bits, ()).expect("one");
     assert!(matches!(one, Foo::One));
@@ -31,8 +32,14 @@ fn main() {
     let three = Foo::read::<NetworkOrder>(&mut bits, ()).expect("three");
     assert!(matches!(three, Foo::Three { bar: 1, baz: 42 }));
 
-    // TODO: write test: need to fix enum writer to always write tag
     let mut bits_mut = BitsMut::new();
     one.write::<NetworkOrder>(&mut bits_mut, ())
         .expect("successful write one");
+    two.write::<NetworkOrder>(&mut bits_mut, ())
+        .expect("successful write two");
+    three
+        .write::<NetworkOrder>(&mut bits_mut, ())
+        .expect("successful write three");
+
+    assert_eq!(bits_clone, bits_mut.freeze());
 }

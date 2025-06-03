@@ -26,7 +26,7 @@ impl TryFrom<ParselyReadReceiver> for ParselyReadEnumData {
     fn try_from(value: ParselyReadReceiver) -> Result<Self, Self::Error> {
         let key_type = value
             .key_type
-            .ok_or(anyhow!("'key' attribute is required on enums"))?;
+            .ok_or(anyhow!("'key_type' attribute is required on enums"))?;
         let variants = value
             .data
             .take_enum()
