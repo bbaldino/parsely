@@ -62,7 +62,7 @@ can be derived and its logic customized via the attributes described below, but
 can also be manually implemented.
 
 ```rust
-use parsely_rs::*;
+# use parsely_rs::*;
 
 pub trait ParselyRead<B>: Sized {
     type Ctx;
@@ -75,7 +75,7 @@ The `ParselyWrite` trait is used for writing data to a buffer.  Like
 implemented.
 
 ```rust
-use parsely_rs::*;
+# use parsely_rs::*;
 
 pub trait ParselyWrite<B>: StateSync + Sized {
     type Ctx;
@@ -91,8 +91,9 @@ See the [Context and required context](#context-and-required-context) section
 below for more information.
 
 The `ByteOrder` generic is used to describe how the data is laid out in the
-buffer (e.g. LittleEndian or BigEndian).  The `BitRead`/`BitWrite` types are
-the buffer to read from/write to.  It comes from the
+buffer (e.g. LittleEndian or BigEndian).  The `B` generic is the buffer type.
+Typically this is an instance of `BitBuf` for reading and `BitBufMut` for
+writing.  Both types come from the
 [bit-cursor](http://github.com/bbaldino/bitcursor) crate.
 
 ## Attributes
@@ -343,20 +344,18 @@ struct Packet {
     data: Vec<u8>,
 }
 
-fn main() {
-    let mut packet = Packet {
-        header: Header {
-            version: 1,
-            packet_type: 2,
-            length_bytes: 0,
-        },
-        data: vec![1, 2, 3, 4],
-    };
+let mut packet = Packet {
+    header: Header {
+        version: 1,
+        packet_type: 2,
+        length_bytes: 0,
+    },
+    data: vec![1, 2, 3, 4],
+};
 
-    packet.sync(()).unwrap();
+packet.sync(()).unwrap();
 
-    assert_eq!(packet.header.length_bytes, 8);
-}
+assert_eq!(packet.header.length_bytes, 8);
 ```
 
 </details>
@@ -440,15 +439,15 @@ couple decisions I made that, from what I can tell, are different from Deku:
 
 1. The [nsw-types](https://github.com/bbaldino/nsw-types) crate is used to
    describe fields of non-standard widths (u3, u18, u33, etc. as opposed to
-using u8, u16, etc. and specifying the number of bits via an attribute), which
-makes message definitions more explicitly-typed and eliminates the needs for
-extra attributes.  The tradeoff here is that a special cursor type
-([BitCursor](https://github.com/bbaldino/bitcursor)) is required to process the
-buffer.
+   using u8, u16, etc. and specifying the number of bits via an attribute), which
+   makes message definitions more explicitly-typed and eliminates the needs for
+   extra attributes.  The tradeoff here is that a special cursor type
+   ([BitCursor](https://github.com/bbaldino/bitcursor)) is required to process the
+   buffer.
 
 1. Byte order is specified as part of the read and write calls as opposed to
    the struct definition.  Deku may support this as well, but I didn't even add
-attributes to denote a type's byte order because it felt like that should exist
-outside the type's definition.
+   attributes to denote a type's byte order because it felt like that should exist
+   outside the type's definition.
 
 1. More...
