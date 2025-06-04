@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5](https://github.com/bbaldino/parsely/compare/parsely-macro-v0.1.4...parsely-macro-v0.1.5) - 2025-06-04
+
+### Other
+
+- updated the following local packages: parsely-impl
+
 ## [0.1.4](https://github.com/bbaldino/parsely/compare/parsely-macro-v0.1.3...parsely-macro-v0.1.4) - 2025-05-02
 
 ### Other
