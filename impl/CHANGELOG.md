@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/bbaldino/parsely/compare/parsely-impl-v0.4.1...parsely-impl-v0.5.0) - 2025-06-04
+
+### Added
+
+- refactor/support tuple structs and enums ([#14](https://github.com/bbaldino/parsely/pull/14))
+
+### Other
+
+- run examples in README as doctests, fix some issues
+- update example/remove unused code ([#12](https://github.com/bbaldino/parsely/pull/12))
+
 ## [0.4.1](https://github.com/bbaldino/parsely/compare/parsely-impl-v0.4.0...parsely-impl-v0.4.1) - 2025-05-02
 
 ### Fixed
