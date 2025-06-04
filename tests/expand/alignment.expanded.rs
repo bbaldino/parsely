@@ -7,20 +7,20 @@ impl<B: BitBuf> ::parsely_rs::ParselyRead<B> for Foo {
     type Ctx = ();
     fn read<T: ::parsely_rs::ByteOrder>(
         buf: &mut B,
-        _ctx: (),
+        (): (),
     ) -> ::parsely_rs::ParselyResult<Self> {
-        let __bytes_remaining_start = buf.remaining_bytes();
+        let __bytes_read_before_Foo_read = buf.remaining_bytes();
         let one = u8::read::<T>(buf, ()).with_context(|| "Reading field 'one'")?;
-        while (__bytes_remaining_start - buf.remaining_bytes()) % 4usize != 0 {
-            buf.get_u8().context("padding")?;
+        while (__bytes_read_before_Foo_read - buf.remaining_bytes()) % 4usize != 0 {
+            buf.get_u8().context("consuming padding")?;
         }
         Ok(Self { one })
     }
 }
 impl<B: BitBufMut> ::parsely_rs::ParselyWrite<B> for Foo {
     type Ctx = ();
-    fn write<T: ByteOrder>(&self, buf: &mut B, ctx: Self::Ctx) -> ParselyResult<()> {
-        let __bytes_remaining_start = buf.remaining_mut_bytes();
+    fn write<T: ByteOrder>(&self, buf: &mut B, (): Self::Ctx) -> ParselyResult<()> {
+        let __bytes_written_before_Foo_write = buf.remaining_mut_bytes();
         u8::write::<T>(&self.one, buf, ())
             .with_context(|| ::alloc::__export::must_use({
                 let res = ::alloc::fmt::format(
@@ -28,13 +28,15 @@ impl<B: BitBufMut> ::parsely_rs::ParselyWrite<B> for Foo {
                 );
                 res
             }))?;
-        while (__bytes_remaining_start - buf.remaining_mut_bytes()) % 4usize != 0 {
-            let _ = buf.put_u8(0).context("padding")?;
+        while (__bytes_written_before_Foo_write - buf.remaining_mut_bytes()) % 4usize
+            != 0
+        {
+            buf.put_u8(0).context("adding padding")?;
         }
         Ok(())
     }
 }
-impl StateSync for Foo {
+impl ::parsely_rs::StateSync for Foo {
     type SyncCtx = ();
     fn sync(&mut self, (): ()) -> ParselyResult<()> {
         self.one

@@ -3,14 +3,15 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use syn::parse::Parse;
 
-use crate::get_crate_name;
+use crate::{get_crate_name, syn_helpers::MemberExts};
 
+#[derive(Debug)]
 pub(crate) enum CollectionLimit {
     Count(syn::Expr),
     While(syn::Expr),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct TypedFnArgList(pub(crate) Vec<TypedFnArg>);
 
 impl TypedFnArgList {
@@ -21,21 +22,6 @@ impl TypedFnArgList {
 
     pub(crate) fn names(&self) -> Vec<&syn::Ident> {
         self.0.iter().map(|t| t.name()).collect()
-    }
-
-    // TODO: this is context-specific, but now this type is more generic.  move it?
-    pub(crate) fn assignments(&self) -> Vec<Local> {
-        self.0
-            .iter()
-            .enumerate()
-            .map(|(idx, fn_arg)| {
-                let idx: syn::Index = idx.into();
-                syn::parse2::<Local>(quote! {
-                    let #fn_arg = ctx.#idx;
-                })
-                .unwrap()
-            })
-            .collect::<Vec<_>>()
     }
 }
 
@@ -253,9 +239,9 @@ impl FromMeta for MapExpr {
 }
 
 impl MapExpr {
-    pub(crate) fn to_read_map_tokens(&self, field_name: &syn::Ident, tokens: &mut TokenStream) {
+    pub(crate) fn to_read_map_tokens(&self, field_name: &syn::Member, tokens: &mut TokenStream) {
         let crate_name = get_crate_name();
-        let field_name_string = field_name.to_string();
+        let field_name_string = field_name.as_friendly_string();
         let map_expr = &self.0;
         // TODO: is there a case where context might be required for reading the 'buffer_type'
         // value?
@@ -269,13 +255,13 @@ impl MapExpr {
         })
     }
 
-    pub(crate) fn to_write_map_tokens(&self, field_name: &syn::Ident, tokens: &mut TokenStream) {
+    pub(crate) fn to_write_map_tokens(&self, field_ident: &syn::Member, tokens: &mut TokenStream) {
         let crate_name = get_crate_name();
-        let field_name_string = field_name.to_string();
+        let field_name_string = field_ident.as_friendly_string();
         let map_expr = &self.0;
         tokens.extend(quote! {
             {
-                let mapped_value = (#map_expr)(&self.#field_name);
+                let mapped_value = (#map_expr)(&self.#field_ident);
                 // Coerce the result of the mapping function into a ParselyResult<T> where we know
                 // T is writable to the buffer.  We need to use this syntax because otherwise the
                 // compiler gets caught up on trying to infer the buffer type.
@@ -319,62 +305,21 @@ impl Assertion {
         });
     }
 
-    pub(crate) fn to_write_assertion_tokens(&self, field_name: &str, tokens: &mut TokenStream) {
+    pub(crate) fn to_write_assertion_tokens(
+        &self,
+        field_ident: &syn::Member,
+        tokens: &mut TokenStream,
+    ) {
         let assertion = &self.0;
         let assertion_string = quote! { #assertion }.to_string();
-        let assertion_func_ident = format_ident!("__{}_assertion_func", field_name);
-        let field_name_ident = format_ident!("{field_name}");
+        let assertion_func_ident =
+            format_ident!("__{}_assertion_func", field_ident.as_variable_name());
+        let field_name_str = field_ident.as_friendly_string();
         tokens.extend(quote! {
             let #assertion_func_ident = #assertion;
-            if !#assertion_func_ident(&self.#field_name_ident) {
-                bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name, self.#field_name_ident, #assertion_string)
+            if !#assertion_func_ident(&self.#field_ident) {
+                bail!("Assertion failed: value of field '{}' ('{:?}') didn't pass assertion: '{}'", #field_name_str, self.#field_ident, #assertion_string)
             }
         })
-    }
-}
-
-pub(crate) fn wrap_read_with_padding_handling(
-    element_ident: &syn::Ident,
-    alignment: usize,
-    inner: TokenStream,
-) -> TokenStream {
-    let bytes_read_before_ident = format_ident!("__bytes_read_before_{element_ident}_read");
-    let bytes_read_after_ident = format_ident!("__bytes_read_after_{element_ident}_read");
-    let amount_read_ident = format_ident!("__bytes_read_for_{element_ident}");
-
-    quote! {
-        let #bytes_read_before_ident = buf.remaining_bytes();
-
-        #inner
-
-        let #bytes_read_after_ident = buf.remaining_bytes();
-        let mut #amount_read_ident = #bytes_read_before_ident - #bytes_read_after_ident;
-        while #amount_read_ident % #alignment != 0 {
-            let _ = buf.get_u8().context("padding")?;
-            #amount_read_ident += 1;
-        }
-    }
-}
-
-pub(crate) fn wrap_write_with_padding_handling(
-    element_ident: &syn::Ident,
-    alignment: usize,
-    inner: TokenStream,
-) -> TokenStream {
-    let bytes_written_before_ident = format_ident!("__bytes_written_before_{element_ident}_write");
-    let bytes_written_after_ident = format_ident!("__bytes_written_after_{element_ident}_write");
-    let amount_written_ident = format_ident!("__bytes_written_for_{element_ident}");
-
-    quote! {
-        let #bytes_written_before_ident = buf.remaining_bytes();
-
-        #inner
-
-        let #bytes_written_after_ident = buf.remaining_bytes();
-        let mut #amount_written_ident = #bytes_written_after_ident - #bytes_written_before_ident;
-        while #amount_written_ident % #alignment != 0 {
-            buf.put_u8(0).context("padding")?;
-            #amount_written_ident += 1;
-        }
     }
 }
