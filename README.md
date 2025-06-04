@@ -85,7 +85,8 @@ Sometimes serializing or deserializing a type requires additional data that may
 come from somewhere else.  The `Ctx` generic can be defined as a tuple and the
 `ctx` argument can be used to pass additional values.
 
-See the [Context and required context](#context-and-required-context) section below for more information.
+See the [Context and required context](#context-and-required-context) section
+below for more information.
 
 The `ByteOrder` generic is used to describe how the data is laid out in the
 buffer (e.g. LittleEndian or BigEndian).  The `BitRead`/`BitWrite` types are
@@ -196,7 +197,7 @@ struct Foo {
 
 ### Count
 
-When reading a Vec<T>, we need to know how many elements to read.  The `count`
+When reading a `Vec<T>``, we need to know how many elements to read.  The`count`
 attribute is used to describe how many elements should be read from the buffer.
 
 Any expression can be passed that evaluates to a number that can be used in a
@@ -258,7 +259,8 @@ use parsely_rs::*;
 #[derive(ParselyRead, ParselyWrite)]
 struct Foo {
     has_value: bool,
-    // Here we refer to the previously-read 'has_value' field to describe whether or not this field is present
+    // Here we refer to the previously-read 'has_value' field to 
+    // describe whether or not this field is present
     #[parsely_read(when = "has_value")]
     value: Option<u32>,
 }
@@ -316,23 +318,24 @@ passed as context to the payload parsing.
 use parsely_rs::*;
 
 #[derive(Debug, ParselyWrite)]
-// sync_args denotes that this type's sync method takes additional arguments.  By default a type's
-// sync field takes no arguments
+// sync_args denotes that this type's sync method takes additional 
+// arguments.  By default a type's sync field takes no arguments
 #[parsely_write(sync_args("payload_length_bytes: u16"))]
 struct Header {
     version: u8,
     packet_type: u8,
-    // sync_func can refer to an expression or a function and will be used to update the annotated
-    // field, it should evaluate to ParselyResult<T> where T is the type of the field.  You can
-    // refer to variables defined in sync_args.
+    // sync_func can refer to an expression or a function and will be used to
+    // update the annotated // field, it should evaluate to ParselyResult<T> 
+    // where T is the type of the field.  You can // refer to variables defined in
+    // sync_args.
     #[parsely_write(sync_expr = "ParselyResult::Ok(payload_length_bytes + 4)")]
     length_bytes: u16,
 }
 
 #[derive(Debug, ParselyWrite)]
 struct Packet {
-    // sync_with attributes add lines to this type's sync method to call sync on its fields (and
-    // what arguments to pass)
+    // sync_with attributes add lines to this type's sync method to call 
+    // sync on its fields (and what arguments to pass)
     #[parsely_write(sync_with("self.data.len() as u16"))]
     header: Header,
     data: Vec<u8>,
