@@ -83,6 +83,28 @@ pub trait ParselyWrite<B>: StateSync + Sized {
 }
 ```
 
+The `StateSync` trait is a required supertrait of `ParselyWrite` and enforces
+synchronization of fields before writing.
+
+```rust
+use parsely_rs::*;
+
+pub trait StateSync: Sized {
+    type SyncCtx;
+
+    fn sync(&mut self, sync_ctx: Self::SyncCtx) -> ParselyResult<()> {
+        Ok(())
+    }
+}
+```
+
+When deriving `ParselyWrite`, a `StateSync` implementation will be generated as
+well.  See the [dependent fields section](#dependent-fields) for more
+information on how attributes can be used to customize the behavior.  If you
+manually implement `ParselyWrite` yourself, you'll need to implement
+`StateSync` as well.  If the field requires no synchronization, you can use the
+`impl_stateless_sync` macro to generate a default impl for your type.
+
 Sometimes serializing or deserializing a type requires additional data that may
 come from somewhere else.  The `Ctx` generic can be defined as a tuple and the
 `ctx` argument can be used to pass additional values.
@@ -162,12 +184,14 @@ the map attribute must be applied independently for reading and writing via
 `#[parsely_read]` and `#[parsely_write]`
 
 When passed via `#[parsely_read]`, the argument must evaluate to a function
-which takes a type T by value, where T is `ParselyRead` and should return a
-`ParselyResult<U>`, where U matches the type of the field.
+or a closure which takes a type `T` by value where `T: ParselyRead` and can
+return either a type `U` or a `Result<U, E>` where `U` is the type of
+the field and `E: Into<anyhow::Error>`.
 
 When passed via `#[parsely_write]`, the argument must evaluate to a function
-which takes a reference to a type T, where T is the type of the field and
-returns a `ParselyResult<U>` where U is `ParselyWrite`.
+or closure which takes a reference to a type `T`, where `T` is the type of
+the field and returns either a type `U` or a `Result<U, E>` where
+`U: ParselyWrite` and `E: Into<anyhow::Error>`.
 
 | Mode | Available |
 | --------- | -------- |
@@ -180,7 +204,7 @@ returns a `ParselyResult<U>` where U is `ParselyWrite`.
 <details>
   <summary>Click to expand</summary>
 
-This example has a String field but reads a u8 from the
+This example has a `String` field but reads a `u8` from the
 buffer and converts it.  On write it does the opposite.  
 
 ```rust
@@ -194,17 +218,26 @@ struct Foo {
     #[parsely_write(map = "|v: &str| { v.parse::<u8>() }")]
     value: String,
 }
+
+let mut bits = Bits::from_static_bytes(&[42]);
+
+let foo = Foo::read::<NetworkOrder>(&mut bits, ()).expect("successful read");
+assert_eq!(foo.value, "42");
+
+let mut bits_mut = BitsMut::new();
+foo.write::<NetworkOrder>(&mut bits_mut, ()).expect("successful write");
+assert_eq!(bits_mut.freeze(), Bits::from_static_bytes(&[42]));
 ```
 
 </details>
 
 ### Count
 
-When reading a `Vec<T>``, we need to know how many elements to read.  The`count`
+When reading a `Vec<T>`, we need to know how many elements to read.  The `count`
 attribute is used to describe how many elements should be read from the buffer.
 
-Any expression can be passed that evaluates to a number that can be used in a
-range expression.
+Any expression that evaluates to a number that can be used in a range
+expression can be used.
 
 | Mode | Available |
 | --------- | -------- |
@@ -217,8 +250,8 @@ range expression.
 <details>
   <summary>Click to expand</summary>
 
-This (quite contrived) example has a boolean field but reads a u1 from the
-buffer and converts it.  On write it does the opposite.  
+Here a `u8` is read into the `data_size` field and the value of that field is
+used to denote the number of elements.
 
 ```rust
 use parsely_rs::*;
@@ -253,8 +286,8 @@ false means it will be skipped and set to `None`.
 <details>
   <summary>Click to expand</summary>
 
-This (quite contrived) example has a boolean field but reads a u1 from the
-buffer and converts it.  On write it does the opposite.  
+Here, a boolean value is read into the `has_value` field and whether a `u32` is
+read for `value` field is based on if `has_value` is true or false.
 
 ```rust
 use parsely_rs::*;
@@ -274,6 +307,42 @@ struct Foo {
 
 ### Assign from
 
+Sometimes a field should be assigned to a value rather than read from the
+buffer.  Any expression evaluating to the type of the field can be passed.
+
+| Mode | Available |
+| --------- | -------- |
+| `#[parsely]` | :x: |
+| `#[parsely_read]` | :white_check_mark: |
+| `#[parsely_write]` | :x: |
+
+#### Examples
+
+<details>
+  <summary>Click to expand</summary>
+
+Here the `header` value has already been read and is passed in via context.  It
+is then assigned directly to the `header` field.
+
+```rust
+use parsely_rs::*;
+
+#[derive(ParselyRead, ParselyWrite)]
+struct Header {
+  payload_type: u8,
+}
+
+#[derive(ParselyRead, ParselyWrite)]
+#[parsely_read(required_context("header: Header"))]
+struct Packet {
+  #[parsely_read(assign_from = "header")]
+  header: Header,
+  other_field: u8,
+}
+```
+
+</details>
+
 ### Dependent fields
 
 Often times packets will have fields whose values depend on other fields.  A
@@ -283,24 +352,16 @@ header might have a length field that should reflect the size of a payload.
 The `sync_args` attribute is used on a struct to define what external
 information is needed in order to sync its fields correctly.
 
-The `sync_func` attribute is used on a specific field to define how it should
-use the args from `sync_args` in order to sync.
+The `sync_expr` attribute is used on a specific field to define how it should
+use the values from `sync_args` (or elsewhere) in order to sync.
 
 The `sync_with` attribute is used to pass information to a field to synchronize
 it.
 
-All types annotated with `ParselyWrite` have a `sync` method generated that
-looks like this:
+All types that implement `ParselyWrite` must also implement the `StateSync` trait.
 
-```ignore
-pub fn sync(&mut self, sync_args: ___) -> ParselyResult<()>;
-```
-
-where `sync_args` is a tuple containing the types defined in the `sync_args` attribute.
-
-This sync function should be called explicitly before writing the type to a
-buffer to make sure all fields are consistent.
-
+The `sync` function from the `StateSync` trait should be called explicitly
+before writing the type to a buffer to make sure all fields are consistent.
 | Mode | Available |
 | --------- | -------- |
 | `#[parsely]` | :x: |
@@ -414,7 +475,6 @@ fn run(buf: &mut Bits) {
   let foo_header = FooHeader::read::<NetworkOrder>(buf, ()).unwrap();
   // Pass the relevant field from header to the payload's read method
   let foo_payload = Foo::read::<NetworkOrder>(buf, (foo_header.payload_len,)).unwrap();
-
 }
 
 
@@ -424,7 +484,6 @@ fn run(buf: &mut Bits) {
 
 ## TODO/Roadmap
 
-* Unit/Newtype/Tuple struct and enum support
 * Probably need some more options around collections (e.g. `while`)
 
 ## Differences from Deku
