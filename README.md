@@ -64,8 +64,9 @@ can also be manually implemented.
 ```rust
 use parsely_rs::*;
 
-pub trait ParselyRead<Ctx>: Sized {
-    fn read<T: ByteOrder, B: BitRead>(buf: &mut B, ctx: Ctx) -> ParselyResult<Self>;
+pub trait ParselyRead<B>: Sized {
+    type Ctx;
+    fn read<T: ByteOrder>(buf: &mut B, ctx: Self::Ctx) -> ParselyResult<Self>;
 }
 ```
 
@@ -76,8 +77,9 @@ implemented.
 ```rust
 use parsely_rs::*;
 
-pub trait ParselyWrite<Ctx>: Sized {
-    fn write<T: ByteOrder, B: BitWrite>(&self, buf: &mut B, ctx: Ctx) -> ParselyResult<()>;
+pub trait ParselyWrite<B>: StateSync + Sized {
+    type Ctx;
+    fn write<T: ByteOrder>(&self, buf: &mut B, ctx: Self::Ctx) -> ParselyResult<()>;
 }
 ```
 
