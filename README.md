@@ -14,7 +14,7 @@ Deku](#differences-from-deku) below.
 Say you want to parse an [RTCP header](https://datatracker.ietf.org/doc/html/rfc3550#section-6.1
 ) formatted like so:
 
-```
+```ignore
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -26,6 +26,8 @@ Where the version (V) field should always contain the value `2`. The code to
 serialize and deserialize it can be written with Parsely like this:
 
 ```rust
+# use parsely_rs::*;
+
 #[derive(Debug, PartialEq, Eq, ParselyRead, ParselyWrite)]
 pub struct RtcpHeader {
     #[parsely(assertion = "|v: &u2| *v == 2")]
@@ -35,32 +37,21 @@ pub struct RtcpHeader {
     pub packet_type: u8,
     pub length_field: u16,
 }
-```
 
-Reading that struct from a `Vec<u8>` looks like this:
-
-```rust
-use parsely::*;
-
+// Reading it from a buffer
 fn do_read(data: Vec<u8>) {
-  let mut cursor = BitCursor::from_vec(data);
+  let mut bits = Bits::from_owner_bytes(data);
 
-  let rtcp_header = RtcpHeader::read::<NetworkOrder, _>(&mut cursor, ())
+  let rtcp_header = RtcpHeader::read::<NetworkOrder>(&mut bits, ())
     .context("Reading RtcpHeader")
     .unwrap();
 }
-```
 
-Writing it out to a buffer looks like this:
-
-```rust
-use parsely::*;
-
+// Writing it out to a buffer
 fn do_write(rtcp_header: RtcpHeader) {
-  let mut data: Vec<u8> = vec![0; 2];
-  let mut cursor = BitCursor::from_vec(data);
+  let mut bits_mut = BitsMut::new();
   
-  let result = header.write::<NetworkOrder, _>(&mut cursor, ());
+  let result = rtcp_header.write::<NetworkOrder>(&mut bits_mut, ());
 }
 ```
 
@@ -71,6 +62,8 @@ can be derived and its logic customized via the attributes described below, but
 can also be manually implemented.
 
 ```rust
+use parsely_rs::*;
+
 pub trait ParselyRead<Ctx>: Sized {
     fn read<T: ByteOrder, B: BitRead>(buf: &mut B, ctx: Ctx) -> ParselyResult<Self>;
 }
@@ -81,6 +74,8 @@ The `ParselyWrite` trait is used for writing data to a buffer.  Like
 implemented.
 
 ```rust
+use parsely_rs::*;
+
 pub trait ParselyWrite<Ctx>: Sized {
     fn write<T: ByteOrder, B: BitWrite>(&self, buf: &mut B, ctx: Ctx) -> ParselyResult<()>;
 }
@@ -128,6 +123,8 @@ type and return a boolean.
   <summary>Click to expand</summary>
 
 ```rust
+use parsely_rs::*;
+
 #[derive(Debug, ParselyRead, ParselyWrite)]
 pub struct MyStruct {
   #[parsely(assertion = "|v: &u8| *v == 42")]
@@ -136,6 +133,8 @@ pub struct MyStruct {
 ```
 
 ```rust
+use parsely_rs::*;
+
 fn my_assertion(value: &u8) -> bool {
   *value == 42
 }
@@ -218,11 +217,13 @@ This (quite contrived) example has a boolean field but reads a u1 from the
 buffer and converts it.  On write it does the opposite.  
 
 ```rust
+use parsely_rs::*;
+
 #[derive(ParselyRead, ParselyWrite)]
 struct Foo {
     data_size: u8,
     // Here we refer to the previously-read 'data_size' field to describe the length
-    #[parsley_read(count = "data_size")]
+    #[parsely_read(count = "data_size")]
     data: Vec<u8>,
 }
 
@@ -252,11 +253,13 @@ This (quite contrived) example has a boolean field but reads a u1 from the
 buffer and converts it.  On write it does the opposite.  
 
 ```rust
+use parsely_rs::*;
+
 #[derive(ParselyRead, ParselyWrite)]
 struct Foo {
     has_value: bool,
     // Here we refer to the previously-read 'has_value' field to describe whether or not this field is present
-    #[parsley_read(when = "has_value")]
+    #[parsely_read(when = "has_value")]
     value: Option<u32>,
 }
 
@@ -284,7 +287,7 @@ it.
 All types annotated with `ParselyWrite` have a `sync` method generated that
 looks like this:
 
-```rust
+```ignore
 pub fn sync(&mut self, sync_args: ___) -> ParselyResult<()>;
 ```
 
@@ -310,7 +313,7 @@ needs to be taken into account rest of the payload.  A field from the header is
 passed as context to the payload parsing.
 
 ```rust
-use parsely::*;
+use parsely_rs::*;
 
 #[derive(Debug, ParselyWrite)]
 // sync_args denotes that this type's sync method takes additional arguments.  By default a type's
@@ -322,7 +325,7 @@ struct Header {
     // sync_func can refer to an expression or a function and will be used to update the annotated
     // field, it should evaluate to ParselyResult<T> where T is the type of the field.  You can
     // refer to variables defined in sync_args.
-    #[parsely_write(sync_func = "ParselyResult::Ok(payload_length_bytes + 4)")]
+    #[parsely_write(sync_expr = "ParselyResult::Ok(payload_length_bytes + 4)")]
     length_bytes: u16,
 }
 
@@ -385,6 +388,8 @@ rest of the payload.  A field from the header is passed as context to the
 payload parsing.
 
 ```rust
+use parsely_rs::*;
+
 #[derive(ParselyRead, ParselyWrite)]
 struct FooHeader {
   packet_type: u8,
@@ -401,10 +406,13 @@ struct Foo {
     data: Vec<u8>,
 }
 
+fn run(buf: &mut Bits) {
+  let foo_header = FooHeader::read::<NetworkOrder>(buf, ()).unwrap();
+  // Pass the relevant field from header to the payload's read method
+  let foo_payload = Foo::read::<NetworkOrder>(buf, (foo_header.payload_len,)).unwrap();
 
-let foo_header = FooHeader::read<NetworkOrder, _>(&mut buf, ()).unwrap();
-// Pass the relevant field from header to the payload's read method
-let foo_payload = Foo::read<NetworkOrder, _>(&mut buf, (foo_header.payload_len,)).unwrap();
+}
+
 
 ```
 

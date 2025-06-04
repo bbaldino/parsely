@@ -1,3 +1,5 @@
+#![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md"))]
+
 // TODO: these should be moved to a prelude file
 pub use parsely_impl::anyhow::{Context, anyhow, bail};
 pub use parsely_impl::error::{IntoParselyResult, IntoWritableParselyResult, ParselyResult};

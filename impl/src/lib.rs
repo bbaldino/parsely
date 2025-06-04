@@ -193,7 +193,7 @@ pub(crate) fn get_crate_name() -> syn::Ident {
         proc_macro_crate::crate_name("parsely-rs").expect("parsely-rs is present in Cargo.toml");
 
     let crate_name = match found_crate {
-        proc_macro_crate::FoundCrate::Itself => "parsely-rs".to_string(),
+        proc_macro_crate::FoundCrate::Itself => "parsely_rs".to_string(),
         proc_macro_crate::FoundCrate::Name(name) => name,
     };
 
